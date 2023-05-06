@@ -3,6 +3,7 @@
 
 void setup(){
     size(224, 288);
+    setTitle("PAC-MAN");
     frameRate(60);
     initAll();
     onExit = freeAll;
