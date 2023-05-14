@@ -208,6 +208,7 @@ void processInterrupt(){
             HALTED = false;
             uint16_t interruptAddress = *(uint16_t*)(MEMORY + ((*I << 8) | INTERRUPT_VECT));
             CALL(interruptAddress);
+            cpuCycles = 19;
     }
 }
 
@@ -217,8 +218,10 @@ void stepCPU(){
         return;
     }
 
-    if(HALTED)
+    if(HALTED){
+        cpuCycles = 1;
         return;
+    }
         
     #ifdef DEBUG
         infoCPU();
@@ -280,9 +283,14 @@ void stepCPU(){
         if(x == 3){
             SET(y, r[z]);
         }
+        if(z == 6 && (prefixDD || prefixFD))
+            cpuCycles = 23;
+        else if(z == 6 && !prefixDD && !prefixDD)
+            cpuCycles = 15;
+        else
+            cpuCycles = 8;
     } else if(opcode == 0xED){
         // ED OPCODE TABLE
-
         *PC = *PC + 1;
         opcode = MEMORY[*PC];
         x = opcode >> 6;
@@ -415,7 +423,6 @@ void stepCPU(){
         }
     } else {
         // NORMAL OPCODE TABLE
-
         opcode = MEMORY[*PC];
         x = opcode >> 6;
         y = (opcode >> 3) & 0b111;
@@ -866,6 +873,7 @@ void stepCPU(){
                 aluFunc function = alu[y];
                 *PC += 2;
                 (*function)(A, val);
+                cpuCycles = 7;
             }
             if(z == 7){
                 *PC += 1;

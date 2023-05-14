@@ -11,10 +11,8 @@ void setup(){
 
 void loop(){
     for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
-        if(cpuCycles == 0){
-            cpuCycles = 1;
+        if(cpuCycles == 0)
             stepCPU();
-        }
         cpuCycles--;
     }
 
