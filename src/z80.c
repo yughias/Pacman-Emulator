@@ -311,6 +311,7 @@ void stepCPU(){
                     setSign8Bit(*A);
                     *A = copy;
                 }
+                cpuCycles = 12;
             }
             if(z == 1){
                 *PC += 1;
@@ -325,6 +326,7 @@ void stepCPU(){
                     setParity(*A);
                     setSign8Bit(*A);
                 }
+                cpuCycles = 12;
             }
             if(z == 2){
                 *PC += 1;
@@ -334,6 +336,7 @@ void stepCPU(){
                 if(q == 1){
                     ADC_16(HL, *(rp[p]));
                 }
+                cpuCycles = 15;
             }
             if(z == 3){
                 uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
@@ -344,10 +347,15 @@ void stepCPU(){
                 if(q == 1){
                     LD_16(rp[p], *(uint16_t*)getReadAddress(nn));
                 }
+                 if(rp[p] == HL)
+                        cpuCycles = 16;
+                    else
+                        cpuCycles = 20;
             }
             if(z == 4){
                 *PC += 1;
                 NEG(A);
+                cpuCycles = 8;
             }
             if(z == 5){
                 *PC += 1;
@@ -357,30 +365,38 @@ void stepCPU(){
                 if(y == 1){
                     RETI();
                 }
+                cpuCycles = 14;
             }
             if(z == 6){
                 *PC += 1;
                 IM();
+                cpuCycles = 8;
             }
             if(z == 7){
                 *PC += 1;
                 if(y == 0){
                     LD_8(I, *A);
+                    cpuCycles = 9;
                 }
                 if(y == 1){
                     LD_8(R, *A);
+                    cpuCycles = 9;
                 }
                 if(y == 2){
                     LD_8(A, *I);
+                    cpuCycles = 9;
                 }
                 if(y == 3){
                     LD_8(A, *R);
+                    cpuCycles = 9;
                 }
                 if(y == 4){
                     RRD();
+                    cpuCycles = 18;
                 }
                 if(y == 5){
                     RLD();
+                    cpuCycles = 18;
                 }
                 if(y == 6){
                     NOP();
@@ -1768,46 +1784,62 @@ void INI(){
     IN(getWriteAddress(*HL), IO[*C]); 
     *HL += 1;
     *B -= 1;  
+    cpuCycles = 16;
 }
 
 void IND(){
     IN(getWriteAddress(*HL), IO[*C]); 
     *HL -= 1;
     *B -= 1;  
+    cpuCycles = 16;
 }
 
 void INIR(){
     INI();
-    if(*B != 0)
+    if(*B != 0){
         *PC -= 2;
+        cpuCycles = 21;
+    } else
+        cpuCycles = 16;
 }
 
 void INDR(){
     IND();
-    if(*B != 0)
+    if(*B != 0){
         *PC -= 2;
+        cpuCycles = 21;
+    } else
+        cpuCycles = 16;
 }
 
 void OUTI(){
     OUT(IO+*C, *getReadAddress(*HL));
     *HL += 1;
     *B -= 1;
+    cpuCycles = 16;
 }
 
 void OUTD(){
     OUT(IO+*C, *getReadAddress(*HL));
     *HL -= 1;
     *B -= 1;
+    cpuCycles = 16;
 }
 
 void OTIR(){
     OUTI();
-    if(*B != 0)
+    if(*B != 0){
         *PC -= 2;
+        cpuCycles = 21;
+    } else
+        cpuCycles = 16;
 }
 
 void OTDR(){
     OUTD();
-    if(*B != 0)
+    if(*B != 0){
         *PC -= 2;
+        cpuCycles = 21;
+    } else
+        cpuCycles = 16;
 }
