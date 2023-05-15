@@ -11,6 +11,7 @@
 #include "memory.h"
 #include "video.h"
 #include "input.h"
+#include "audio.h"
 
 void initAll();
 void freeAll();

@@ -11,11 +11,23 @@ void setup(){
 
 void loop(){
     for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
-        if(cpuCycles == 0)
+        if(cpuCycles == 0){
             stepCPU();
+        }
+
+        if(audioCycles == 0){
+            updateAudio();
+            audioCycles = 32;
+        }
+
         cpuCycles--;
+        audioCycles--;
     }
 
-    sendInterrupt();
+    if(VBLANK_ENABLED){
+        sendInterrupt();
+    }
+
+    drawVideo();
     updateInput();
 }

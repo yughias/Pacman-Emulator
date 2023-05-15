@@ -9,18 +9,17 @@ void loadROM(const char* filename, size_t size, uint8_t* buffer){
 void initAll(){
     initMemory();
     initVideoData();
+    initAudioData();
     initCPU();
 }
 
 void freeAll(){
     freeMemory();
     freeVideoData();
+    freeAudioData();
 }
 
 void sendInterrupt(){
-    if(VBLANK_ENABLED){
-        INTERRUPT_PENDING = true;
-        INTERRUPT_VECT = IO[0];
-    }
-    drawVideo();
+    INTERRUPT_PENDING = true;
+    INTERRUPT_VECT = IO[0];
 }
