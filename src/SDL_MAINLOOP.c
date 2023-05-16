@@ -42,7 +42,6 @@ int main(int argc, char* argv[]){
     displayWidth = displayMode.w;
     displayHeight = displayMode.h;
     strcpy(windowName, "window");
-    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
     setup();
 
     window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, winFlags);
@@ -123,7 +122,6 @@ int main(int argc, char* argv[]){
     if(onExit)
         (*onExit)();
 
-    Mix_CloseAudio();
     SDL_DestroyWindow(window);
     SDL_Quit();
 
@@ -172,16 +170,4 @@ int green(int col){
 
 int blue(int col){
     return col & 0xFF;
-}
-
-Sound* loadSound(const char* filename){
-    return Mix_LoadWAV(filename);
-}
-
-void playSound(Sound* sound){
-    Mix_PlayChannel(-1, sound, 0);
-}
-
-void freeSound(Sound* sound){
-    Mix_FreeChunk(sound);
 }

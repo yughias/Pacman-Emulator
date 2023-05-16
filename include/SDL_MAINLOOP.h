@@ -2,7 +2,6 @@
 #define _SDL_MAINLOOP_H_
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_mixer.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -19,8 +18,6 @@
 
 typedef int keyboard;
 typedef Uint32 button;
-
-typedef Mix_Chunk Sound;
 
 extern unsigned int displayWidth;
 extern unsigned int displayHeight;
@@ -55,11 +52,6 @@ int color(int, int, int);
 int red(int);
 int green(int);
 int blue(int);
-
-// Audio function 
-Sound* loadSound(const char*);
-void playSound(Sound*);
-void freeSound(Sound*);
 
 // Custom callbacks
 extern void (*onExit)();
