@@ -9,6 +9,5 @@ extern uint64_t audioCycles;
 void initAudioData();
 void freeAudioData();
 void generateAudioSample();
-void sendAudioData();
 
 #endif

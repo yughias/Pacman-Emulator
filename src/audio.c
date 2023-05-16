@@ -1,40 +1,28 @@
 #include "hardware.h"
 #include <SDL_MAINLOOP.h>
 
-uint8_t*  AUDIO_ROM;
-uint16_t* audioBuffer;
-size_t    bufferHead;
-size_t    bufferTail;
-uint64_t  audioCycles;
-
+uint8_t* AUDIO_ROM;
 uint32_t VOICE_ACCUMULATOR[3];
+uint64_t audioCycles;
 
 SDL_AudioSpec audioSpec;
 SDL_AudioDeviceID audioDev;
-void audioCallback(void*, Uint8*, int);
 
 void initAudioData(){
     SDL_memset(&audioSpec, 0, sizeof(audioSpec));
     audioSpec.freq = AUDIO_FREQUENCY;
     audioSpec.format = AUDIO_U16;
     audioSpec.channels = 1;
-    //audioSpec.callback = audioCallback;
     audioDev = SDL_OpenAudioDevice(NULL, 0, &audioSpec, &audioSpec, 0);
     SDL_PauseAudioDevice(audioDev, 0);
     AUDIO_ROM = malloc(sizeof(uint8_t)*AUDIO_ROM_SIZE);
-    audioBuffer = malloc(sizeof(uint16_t)*AUDIO_FREQUENCY);
-    memset(audioBuffer, 0, sizeof(uint16_t)*AUDIO_FREQUENCY);
     memset(VOICE_ACCUMULATOR, 0, sizeof(uint32_t)*3);
     loadROM("ROM/82s126.1m", 256, AUDIO_ROM);
     loadROM("ROM/82s126.3m", 256, AUDIO_ROM+256);
-    audioCycles = 0;
-    bufferHead = 0;
-    bufferTail = 0;
 }
 
 void freeAudioData(){
     free(AUDIO_ROM);
-    free(audioBuffer);
     SDL_CloseAudioDevice(audioDev);
 }
 
