@@ -3,6 +3,7 @@
 
 #define AUDIO_ROM_SIZE 512
 #define AUDIO_FREQUENCY 96000
+#define VOLUME_MULTIPLIER 20
 
 extern uint64_t audioCycles;
 

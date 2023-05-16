@@ -73,5 +73,7 @@ void generateAudioSample(){
     volume = VOICE3_FREQ_VOL[4] & 0xf;
     deviceSample += sample*volume;
 
+    deviceSample *= VOLUME_MULTIPLIER;
+
     SDL_QueueAudio(audioDev, &deviceSample, 2);
 }
