@@ -16,7 +16,7 @@ void loop(){
         }
 
         if(audioCycles == 0){
-            updateAudio();
+            generateAudioSample();
             audioCycles = 32;
         }
 
@@ -24,9 +24,8 @@ void loop(){
         audioCycles--;
     }
 
-    if(VBLANK_ENABLED){
+    if(VBLANK_ENABLED)
         sendInterrupt();
-    }
 
     drawVideo();
     updateInput();
