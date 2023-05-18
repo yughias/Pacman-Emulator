@@ -1,14 +1,15 @@
 #ifndef __AUDIO_H__
 #define __AUDIO_H__
 
+#include <SDL_MAINLOOP.h>
+
 #define AUDIO_ROM_SIZE 512
 #define AUDIO_FREQUENCY 96000
 #define VOLUME_MULTIPLIER 20
 
-extern uint64_t audioCycles;
-
 void initAudioData();
 void freeAudioData();
-void generateAudioSample();
+void activateAudio();
+uint16_t generateAudioSample();
 
 #endif

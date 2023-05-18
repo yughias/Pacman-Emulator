@@ -6,22 +6,16 @@ void setup(){
     setTitle("PAC-MAN");
     frameRate(60);
     initAll();
+    activateAudio();
     onExit = freeAll;
 }
 
 void loop(){
     for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
-        if(cpuCycles == 0){
+        if(cpuCycles == 0)
             stepCPU();
-        }
-
-        if(audioCycles == 0){
-            generateAudioSample();
-            audioCycles = 32;
-        }
 
         cpuCycles--;
-        audioCycles--;
     }
 
     if(VBLANK_ENABLED)

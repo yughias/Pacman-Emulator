@@ -89,7 +89,6 @@ void initCPU(){
     *BC_ = 0;
     *DE_ = 0;
     *HL_ = 0;
-    // set default bit of the flag register
     *I = 0;
     *R = 0;
     HALTED = false;
@@ -885,7 +884,7 @@ void stepCPU(){
    
 }
 
-//z80 NEW INSTRUCTION
+// Z80 INSTRUCTIONS
 
 void NOP(){
     cpuCycles = 4;

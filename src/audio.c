@@ -3,18 +3,21 @@
 
 uint8_t* AUDIO_ROM;
 uint32_t VOICE_ACCUMULATOR[3];
-uint64_t audioCycles;
 
 SDL_AudioSpec audioSpec;
 SDL_AudioDeviceID audioDev;
+
+void audioCallback(void*, Uint8*, int);
 
 void initAudioData(){
     SDL_memset(&audioSpec, 0, sizeof(audioSpec));
     audioSpec.freq = AUDIO_FREQUENCY;
     audioSpec.format = AUDIO_U16;
     audioSpec.channels = 1;
+    audioSpec.samples = 1024;
+    audioSpec.callback = audioCallback;
     audioDev = SDL_OpenAudioDevice(NULL, 0, &audioSpec, &audioSpec, 0);
-    SDL_PauseAudioDevice(audioDev, 0);
+    
     AUDIO_ROM = malloc(sizeof(uint8_t)*AUDIO_ROM_SIZE);
     memset(VOICE_ACCUMULATOR, 0, sizeof(uint32_t)*3);
     loadROM("ROM/82s126.1m", 256, AUDIO_ROM);
@@ -26,7 +29,11 @@ void freeAudioData(){
     SDL_CloseAudioDevice(audioDev);
 }
 
-void generateAudioSample(){
+void activateAudio(){
+    SDL_PauseAudioDevice(audioDev, 0);
+}
+
+uint16_t generateAudioSample(){
     uint32_t frequency;
     uint8_t waveform;
     uint8_t idx;
@@ -35,10 +42,8 @@ void generateAudioSample(){
 
     uint16_t deviceSample = 0;
 
-    if(!SOUND_ENABLED){
-        SDL_QueueAudio(audioDev, &deviceSample, 2);
-        return;
-    }
+    if(!SOUND_ENABLED)
+        return deviceSample;
 
     frequency = 0;
     for(int i = 0; i < 5; i++)
@@ -75,5 +80,11 @@ void generateAudioSample(){
 
     deviceSample *= VOLUME_MULTIPLIER;
 
-    SDL_QueueAudio(audioDev, &deviceSample, 2);
+    return deviceSample;
+}
+
+void audioCallback(void* userdata, Uint8* stream, int len){
+    len /= 2;
+    for(size_t i = 0; i < len; i++)
+        ((uint16_t*)stream)[i] = generateAudioSample();
 }
