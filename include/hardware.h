@@ -15,6 +15,7 @@
 
 void initAll();
 void freeAll();
+void emulateHardware();
 void loadROM(const char*, size_t, uint8_t*);
 void sendInterrupt();
 

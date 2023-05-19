@@ -20,8 +20,8 @@ void initAudioData(){
     
     AUDIO_ROM = malloc(sizeof(uint8_t)*AUDIO_ROM_SIZE);
     memset(VOICE_ACCUMULATOR, 0, sizeof(uint32_t)*3);
-    loadROM("ROM/82s126.1m", 256, AUDIO_ROM);
-    loadROM("ROM/82s126.3m", 256, AUDIO_ROM+256);
+    loadROM("data/ROM/82s126.1m", 256, AUDIO_ROM);
+    loadROM("data/ROM/82s126.3m", 256, AUDIO_ROM+256);
 }
 
 void freeAudioData(){
@@ -29,7 +29,7 @@ void freeAudioData(){
     SDL_CloseAudioDevice(audioDev);
 }
 
-void activateAudio(){
+void unpauseAudio(){
     SDL_PauseAudioDevice(audioDev, 0);
 }
 

@@ -35,10 +35,10 @@ void initMemory(){
     memset(MEMORY, 0, MEMORY_SIZE);
     memset(IO, 0, IO_SIZE);
 
-    loadROM("ROM/pacman.6e", 0x1000, MEMORY       );
-    loadROM("ROM/pacman.6f", 0x1000, MEMORY+0x1000);
-    loadROM("ROM/pacman.6h", 0x1000, MEMORY+0x2000);
-    loadROM("ROM/pacman.6j", 0x1000, MEMORY+0x3000);
+    loadROM("data/ROM/pacman.6e", 0x1000, MEMORY       );
+    loadROM("data/ROM/pacman.6f", 0x1000, MEMORY+0x1000);
+    loadROM("data/ROM/pacman.6h", 0x1000, MEMORY+0x2000);
+    loadROM("data/ROM/pacman.6j", 0x1000, MEMORY+0x3000);
 
     IN0                   = 0xFF;
     VBLANK_ENABLED        = 0x00;

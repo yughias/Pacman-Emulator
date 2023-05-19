@@ -26,10 +26,10 @@ void initVideoData(){
     paletteROM = malloc(256);
     tileROM    = malloc(4096);
     spriteROM  = malloc(4096);
-    loadROM("ROM/82s123.7f", 32,   colorROM);
-    loadROM("ROM/82s126.4a", 256,  paletteROM);
-    loadROM("ROM/pacman.5e", 4096, tileROM);
-    loadROM("ROM/pacman.5f", 4096, spriteROM);
+    loadROM("data/ROM/82s123.7f", 32,   colorROM);
+    loadROM("data/ROM/82s126.4a", 256,  paletteROM);
+    loadROM("data/ROM/pacman.5e", 4096, tileROM);
+    loadROM("data/ROM/pacman.5f", 4096, spriteROM);
 
     palettesInfo = MEMORY + PALETTE_RAM;
     tilesInfo    = MEMORY + TILE_RAM; 

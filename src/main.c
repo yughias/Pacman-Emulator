@@ -4,23 +4,18 @@
 void setup(){
     size(224, 288);
     setTitle("PAC-MAN");
+    setWindowIcon("data/logo.bmp");
     frameRate(60);
     initAll();
-    activateAudio();
+    unpauseAudio();
     onExit = freeAll;
 }
 
 void loop(){
-    for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
-        if(cpuCycles == 0)
-            stepCPU();
+    emulateHardware();
 
-        cpuCycles--;
-    }
-
-    if(VBLANK_ENABLED)
-        sendInterrupt();
-
+    const Uint8* keyState = SDL_GetKeyboardState(NULL);
+    updateInput(keyState);
+    
     drawVideo();
-    updateInput();
 }

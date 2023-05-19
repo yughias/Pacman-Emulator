@@ -45,6 +45,7 @@ void setup();
 void loop();
 void size(int, int);
 void setTitle(const char*);
+void setWindowIcon(const char*);
 Uint64 millis();
 void fullScreen();
 void background(int, int, int);

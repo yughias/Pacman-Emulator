@@ -23,3 +23,14 @@ void sendInterrupt(){
     INTERRUPT_PENDING = true;
     INTERRUPT_VECT = IO[0];
 }
+
+void emulateHardware(){
+    for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
+        if(cpuCycles == 0)
+            stepCPU();
+        cpuCycles--;
+    }
+
+    if(VBLANK_ENABLED)
+        sendInterrupt();
+}

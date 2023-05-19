@@ -1,9 +1,7 @@
 #include <hardware.h>
 #include <SDL_MAINLOOP.h>
 
-void updateInput(){
-    const Uint8* keyState = SDL_GetKeyboardState(NULL);
-
+void updateInput(const Uint8* keyState){
     IN0 = 0xFF;
     if(keyState[SDL_SCANCODE_UP])
         IN0 &= ~(uint8_t)(1 << 0);

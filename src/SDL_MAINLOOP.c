@@ -29,11 +29,13 @@ void (*onKeyPressed)(keyboard) = NULL;
 void (*onKeyReleased)(keyboard) = NULL;
 
 // not accessible variables
-SDL_Window* window;
-SDL_Surface* surface;
+SDL_Window* window = NULL;
+SDL_Surface* surface = NULL;
 bool running = false;
 Uint32 winFlags = SDL_WINDOW_SHOWN;
 char windowName[MAX_NAME+1];
+char iconPath[MAX_NAME+1];
+void updateWindowIcon();
 
 int main(int argc, char* argv[]){
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -49,6 +51,7 @@ int main(int argc, char* argv[]){
     pixels = (int*)surface->pixels;
     width = surface->w;
     height = surface->h;
+    updateWindowIcon();
 
     Uint64 a_clock = SDL_GetPerformanceCounter();
     Uint64 b_clock = SDL_GetPerformanceCounter();
@@ -137,9 +140,20 @@ void size(int w, int h){
 
 void setTitle(const char* name){
     strncpy(windowName, name, MAX_NAME);
-    if(window){
+    if(window)
         SDL_SetWindowTitle(window, windowName);
-    }
+}
+
+void setWindowIcon(const char* filename){
+    strncpy(iconPath, filename, MAX_NAME);
+    if(window)
+        updateWindowIcon();
+}
+
+void updateWindowIcon(){
+    SDL_Surface* icon = SDL_LoadBMP(iconPath);
+    SDL_SetWindowIcon(window, icon);
+    SDL_FreeSurface(icon);
 }
 
 Uint64 millis(){

@@ -9,7 +9,7 @@
 
 void initAudioData();
 void freeAudioData();
-void activateAudio();
+void unpauseAudio();
 uint16_t generateAudioSample();
 
 #endif
