@@ -1,6 +1,6 @@
 #include "SDL_MAINLOOP.h"
 
-#define MAX_NAME  64
+#define MAX_NAME 64
 
 unsigned int displayWidth;
 unsigned int displayHeight;

@@ -2,9 +2,9 @@
 #include <cpu_utility.h>
 
 // check if cpu is working
-bool HALTED;
-bool INTERRUPT_ENABLED;
-bool INTERRUPT_PENDING;
+bool     HALTED;
+bool     INTERRUPT_ENABLED;
+bool     INTERRUPT_PENDING;
 uint16_t INTERRUPT_VECT;
 
 // registers in 16 bit mode

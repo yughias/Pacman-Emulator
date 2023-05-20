@@ -2,8 +2,8 @@
 #include "frontend.h"
 #include "SDL_MAINLOOP.h"
 
-unsigned int emulationSpeed = 1;
-bool soundMute = false;
+unsigned int emulationSpeed   = 1;
+bool         soundMute        = false;
 unsigned int volumeMultiplier = 20;
 
 void printInfo(){
