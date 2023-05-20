@@ -1,5 +1,5 @@
 #include <hardware.h>
-#include <SDL_MAINLOOP.h>
+#include <SDL2/SDL.h>
 
 void updateInput(const Uint8* keyState){
     IN0 = 0xFF;

@@ -1,5 +1,6 @@
 #include "hardware.h"
-#include <SDL_MAINLOOP.h>
+#include "frontend.h"
+#include "SDL_MAINLOOP.h"
 
 uint8_t* AUDIO_ROM;
 uint32_t VOICE_ACCUMULATOR[3];
@@ -42,7 +43,7 @@ uint16_t generateAudioSample(){
 
     uint16_t deviceSample = 0;
 
-    if(!SOUND_ENABLED)
+    if(soundMute || !SOUND_ENABLED)
         return deviceSample;
 
     frequency = 0;
@@ -78,7 +79,7 @@ uint16_t generateAudioSample(){
     volume = VOICE3_FREQ_VOL[4] & 0xf;
     deviceSample += sample*volume;
 
-    deviceSample *= VOLUME_MULTIPLIER;
+    deviceSample *= volumeMultiplier;
 
     return deviceSample;
 }
