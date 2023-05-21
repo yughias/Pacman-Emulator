@@ -6,8 +6,9 @@
 
 #define VOLUME_MULTIPLIER_LIMIT 95
 
+extern bool         emulationStopped;
+extern bool         soundMute;
 extern unsigned int emulationSpeed;
-extern bool soundMute;
 extern unsigned int volumeMultiplier;
 
 void printInfo();

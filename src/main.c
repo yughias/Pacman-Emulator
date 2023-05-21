@@ -14,8 +14,9 @@ void setup(){
 }
 
 void loop(){
-    for(size_t i = 0; i < emulationSpeed; i++)
-        emulateHardware();
+    if(!emulationStopped)
+        for(size_t i = 0; i < emulationSpeed; i++)
+            emulateHardware();
 
     const Uint8* keyState = SDL_GetKeyboardState(NULL);
     updateInput(keyState);

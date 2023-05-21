@@ -18,7 +18,7 @@ void initAudioData(){
     audioSpec.samples = 1024;
     audioSpec.callback = audioCallback;
     audioDev = SDL_OpenAudioDevice(NULL, 0, &audioSpec, &audioSpec, 0);
-    
+
     memset(VOICE_ACCUMULATOR, 0, sizeof(uint32_t)*3);
     AUDIO_ROM = malloc(sizeof(uint8_t)*AUDIO_ROM_SIZE);
     loadROM("data/ROM/82s126.1m", 256, AUDIO_ROM);
@@ -43,7 +43,7 @@ uint16_t generateAudioSample(){
 
     uint16_t deviceSample = 0;
 
-    if(soundMute || !SOUND_ENABLED)
+    if(emulationStopped || soundMute || !SOUND_ENABLED)
         return deviceSample;
 
     frequency = 0;

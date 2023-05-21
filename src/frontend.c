@@ -2,8 +2,9 @@
 #include "frontend.h"
 #include "SDL_MAINLOOP.h"
 
-unsigned int emulationSpeed   = 1;
+bool         emulationStopped = false;
 bool         soundMute        = false;
+unsigned int emulationSpeed   = 1;
 unsigned int volumeMultiplier = 20;
 
 void printInfo(){
@@ -11,9 +12,9 @@ void printInfo(){
     printf("MADE BY YUGHIAS!\n\n");
     printf("ARCADE COMMANDS\n");
     printf("1:\t\tSTART ONE PLAYER MODE\n");
-    printf("2:\t\tSTART TWO PLAYERS MODE\n");
+    printf("2:\t\tSTART TWO PLAYER MODE\n");
     printf("ARROW KEYS:\tPLAYER ONE JOYSTICK\n");
-    printf("LEFT SHIFT:\tINSERT COIN\n");
+    printf("RIGHT SHIFT:\tINSERT COIN\n");
 }
 
 void updateHotKeys(const Uint8* keyState){
@@ -42,6 +43,10 @@ void updateHotKeys(const Uint8* keyState){
             case SDLK_F3:
             if(volumeMultiplier < VOLUME_MULTIPLIER_LIMIT)
                 volumeMultiplier++;
+            break;
+
+            case SDLK_F4:
+            emulationStopped = !emulationStopped;
             break;
         }
     }
