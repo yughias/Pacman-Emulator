@@ -35,6 +35,7 @@ extern uint8_t VOICE3_FREQ_VOL[5];
 extern uint8_t SPRITE_COORDS[16];
 extern uint8_t DIP_SWITCH_SETTINGS;
 extern uint8_t WATCHDOG_RESET;
+extern uint8_t NOT_MAPPED;
 
 
 void initMemory();

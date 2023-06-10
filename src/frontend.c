@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include "frontend.h"
+#include "gameState.h"
+#include "hardware.h"
 #include "SDL_MAINLOOP.h"
 
 bool         emulationStopped = false;
@@ -48,6 +50,17 @@ void updateHotKeys(const Uint8* keyState){
             case SDLK_F4:
             emulationStopped = !emulationStopped;
             break;
+
+            case SDLK_F5:
+            initCPU();
+            break;
+
+            case SDLK_F6:
+            saveState();
+            break;
+
+            case SDLK_F7:
+            loadState();
         }
     }
 }
