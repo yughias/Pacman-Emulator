@@ -447,17 +447,17 @@ void stepCPU(){
                 }
                 if(y == 2){
                     *PC += 2;
-                    DJNZ((int8_t)*getReadAddress(*PC-1));
+                    DJNZ(*getReadAddress(*PC-1));
                 }   
                 if(y == 3){
                     *PC += 2;
-                    JR((int8_t)*getReadAddress(*PC-1));
+                    JR(*getReadAddress(*PC-1));
                     cpuCycles = 12;
                 }
                 if(y == 4){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRNZ((int8_t)*getReadAddress(*PC-1));
+                    JRNZ(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -466,7 +466,7 @@ void stepCPU(){
                 if(y == 5){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRZ((int8_t)*getReadAddress(*PC-1));
+                    JRZ(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -475,7 +475,7 @@ void stepCPU(){
                 if(y == 6){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRNC((int8_t)*getReadAddress(*PC-1));
+                    JRNC(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -484,7 +484,7 @@ void stepCPU(){
                 if(y == 7){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRC((int8_t)*getReadAddress(*PC-1));
+                    JRC(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else

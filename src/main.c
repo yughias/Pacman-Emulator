@@ -1,7 +1,6 @@
 #include <SDL_MAINLOOP.h>
 #include <frontend.h>
 #include <hardware.h>
-#include <gameState.h>
 
 void setup(){
     size(224, 288);
