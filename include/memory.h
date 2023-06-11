@@ -1,8 +1,7 @@
 #ifndef _MEMORY_H_
 #define _MEMORY_H_
 
-#define IO_SIZE 1
-
+#define IO_SIZE        0x0001
 #define ROM_SIZE       0x4000
 #define RAM_SIZE       0x1000
 #define TILE_RAM       0x4000

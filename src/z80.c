@@ -266,18 +266,17 @@ void stepCPU(){
         p = (y >> 1) & 0b11;
 
         *PC += 1;
-
-        if(x == 0){
-            rotateFunc function = rot[y];
-            uint8_t* operand;
-            operand = r[z];
-            (*function)(operand);
-        }
         if(z == 6){
             if(x == 1)
                 r[z] = getReadAddress((uintptr_t)r[z]);
             else
                 r[z] = getWriteAddress((uintptr_t)r[z]);
+        }
+        if(x == 0){
+            rotateFunc function = rot[y];
+            uint8_t* operand;
+            operand = r[z];
+            (*function)(operand);
         }
         if(x == 1){
             BIT(y, r[z]);    
@@ -448,17 +447,17 @@ void stepCPU(){
                 }
                 if(y == 2){
                     *PC += 2;
-                    DJNZ(*getReadAddress(*PC-1));
+                    DJNZ((int8_t)*getReadAddress(*PC-1));
                 }   
                 if(y == 3){
                     *PC += 2;
-                    JR(*getReadAddress(*PC-1));
+                    JR((int8_t)*getReadAddress(*PC-1));
                     cpuCycles = 12;
                 }
                 if(y == 4){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRNZ(*getReadAddress(*PC-1));
+                    JRNZ((int8_t)*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -467,7 +466,7 @@ void stepCPU(){
                 if(y == 5){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRZ(*getReadAddress(*PC-1));
+                    JRZ((int8_t)*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -476,7 +475,7 @@ void stepCPU(){
                 if(y == 6){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRNC(*getReadAddress(*PC-1));
+                    JRNC((int8_t)*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -485,7 +484,7 @@ void stepCPU(){
                 if(y == 7){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRC(*getReadAddress(*PC-1));
+                    JRC((int8_t)*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
