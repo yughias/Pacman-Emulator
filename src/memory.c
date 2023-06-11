@@ -91,8 +91,6 @@ uint8_t* getReadAddress(uint16_t address){
         return &IN1;
     else
         return &DIP_SWITCH_SETTINGS;
-
-    printf("WTF!\n");
 }
 
 uint8_t* getWriteAddress(uint16_t address){
@@ -141,6 +139,4 @@ uint8_t* getWriteAddress(uint16_t address){
         return &WATCHDOG_RESET;
     else
         return NOT_MAPPED;
-    
-    printf("WTF!\n");
 }
