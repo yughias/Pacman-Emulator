@@ -3,7 +3,8 @@
 
 #define IO_SIZE 1
 
-#define MEMORY_SIZE    0x5000
+#define ROM_SIZE       0x4000
+#define RAM_SIZE       0x1000
 #define TILE_RAM       0x4000
 #define PALETTE_RAM    0x4400
 #define SPRITE_RAM     0x4FF0
@@ -11,8 +12,9 @@
 // I/0 SPACE
 extern uint8_t IO[IO_SIZE];
 
-// RAM
-extern uint8_t* MEMORY;
+// MEMORY
+extern uint8_t* ROM;
+extern uint8_t* RAM;
 
 // Memory Mapped Registers
 extern uint8_t IN0;
@@ -35,7 +37,7 @@ extern uint8_t VOICE3_FREQ_VOL[5];
 extern uint8_t SPRITE_COORDS[16];
 extern uint8_t DIP_SWITCH_SETTINGS;
 extern uint8_t WATCHDOG_RESET;
-extern uint8_t NOT_MAPPED;
+extern uint8_t NOT_MAPPED[2];
 
 
 void initMemory();

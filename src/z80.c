@@ -158,7 +158,7 @@ void restoreRegisterTable(){
     r[3] = E;
     r[4] = H;
     r[5] = L;
-    r[6] = MEMORY + *HL;
+    r[6] = (uint8_t*)(uintptr_t)*HL;
     r[7] = A;
 }
 
@@ -169,7 +169,7 @@ void useDDRegisterTable(){
 
     r[4] = IXH;
     r[5] = IXL;
-    r[6] = MEMORY+((int16_t)*IX+((int8_t)MEMORY[*PC+2]));
+    r[6] = (uint8_t*)(uintptr_t)(*IX+((int8_t)*getReadAddress(*PC+2)));
 }
 
 void useFDRegisterTable(){
@@ -179,7 +179,7 @@ void useFDRegisterTable(){
 
     r[4] = IYH;
     r[5] = IYL;
-    r[6] = MEMORY+((int16_t)*IY+((int8_t)MEMORY[*PC+2]));
+    r[6] = (uint8_t*)(uintptr_t)(*IY+((int8_t)*getReadAddress(*PC+2)));
 }
 
 void adjustDDorFFOpcode(){
@@ -201,8 +201,8 @@ void infoCPU(){
     fprintf(stderr, "P: %d ", (bool)(*F & SET_P));
     fprintf(stderr, "A: %d ", (bool)(*F & SET_H));
     fprintf(stderr, "SP: 0x%04X\n", *SP);
-    fprintf(stderr, "Stack: 0x%04X\n", *(uint16_t*)(MEMORY+*SP));
-    fprintf(stderr, "OPCODE: 0x%02X %02X %02X", MEMORY[*PC], MEMORY[*PC+1], MEMORY[*PC+2]);
+    fprintf(stderr, "Stack: 0x%04X\n", *(uint16_t*)getReadAddress(*SP));
+    fprintf(stderr, "OPCODE: 0x%02X %02X %02X", *getReadAddress(*PC), *getReadAddress(*PC+1), *getReadAddress(*PC+2));
     fprintf(stderr, "\n\n");
 }
 
@@ -211,7 +211,7 @@ void processInterrupt(){
             INTERRUPT_ENABLED = false;
             INTERRUPT_PENDING = false;
             HALTED = false;
-            uint16_t interruptAddress = *(uint16_t*)(MEMORY + ((*I << 8) | INTERRUPT_VECT));
+            uint16_t interruptAddress = *(uint16_t*)getReadAddress((*I << 8) | INTERRUPT_VECT);
             CALL(interruptAddress);
             cpuCycles = 19;
     }
@@ -231,7 +231,7 @@ void stepCPU(){
     #ifdef DEBUG
         infoCPU();
     #endif
-    uint8_t opcode = MEMORY[*PC];
+    uint8_t opcode = *getReadAddress(*PC);
     uint8_t x;
     uint8_t y;
     uint8_t z;
@@ -251,14 +251,14 @@ void stepCPU(){
         *PC += 1;
     }
 
-    opcode = MEMORY[*PC];
+    opcode = *getReadAddress(*PC);
 
     if(opcode == 0xCB){
         if(prefixDD || prefixFD)
             *PC += 1;
 
         *PC += 1;
-        opcode = MEMORY[*PC];
+        opcode = *getReadAddress(*PC);
         x = opcode >> 6;
         y = (opcode >> 3) & 0b111;
         z = opcode & 0b111;
@@ -275,9 +275,9 @@ void stepCPU(){
         }
         if(z == 6){
             if(x == 1)
-                r[z] = getReadAddress(r[z] - MEMORY);
+                r[z] = getReadAddress((uintptr_t)r[z]);
             else
-                r[z] = getWriteAddress(r[z] - MEMORY);
+                r[z] = getWriteAddress((uintptr_t)r[z]);
         }
         if(x == 1){
             BIT(y, r[z]);    
@@ -297,7 +297,7 @@ void stepCPU(){
     } else if(opcode == 0xED){
         // ED OPCODE TABLE
         *PC = *PC + 1;
-        opcode = MEMORY[*PC];
+        opcode = *getReadAddress(*PC);
         x = opcode >> 6;
         y = (opcode >> 3) & 0b111;
         z = opcode & 0b111;
@@ -352,7 +352,7 @@ void stepCPU(){
                 cpuCycles = 15;
             }
             if(z == 3){
-                uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
+                uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
                 *PC += 3;
                 if(q == 0){
                     LD_16((uint16_t*)getWriteAddress(nn), *(rp[p]));
@@ -428,7 +428,7 @@ void stepCPU(){
         }
     } else {
         // NORMAL OPCODE TABLE
-        opcode = MEMORY[*PC];
+        opcode = *getReadAddress(*PC);
         x = opcode >> 6;
         y = (opcode >> 3) & 0b111;
         z = opcode & 0b111;
@@ -448,17 +448,17 @@ void stepCPU(){
                 }
                 if(y == 2){
                     *PC += 2;
-                    DJNZ(MEMORY[*PC-1]);
+                    DJNZ(*getReadAddress(*PC-1));
                 }   
                 if(y == 3){
                     *PC += 2;
-                    JR(MEMORY[*PC-1]);
+                    JR(*getReadAddress(*PC-1));
                     cpuCycles = 12;
                 }
                 if(y == 4){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRNZ(MEMORY[*PC-1]);
+                    JRNZ(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -467,7 +467,7 @@ void stepCPU(){
                 if(y == 5){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRZ(MEMORY[*PC-1]);
+                    JRZ(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -476,7 +476,7 @@ void stepCPU(){
                 if(y == 6){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRNC(MEMORY[*PC-1]);
+                    JRNC(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -485,7 +485,7 @@ void stepCPU(){
                 if(y == 7){
                     *PC += 2;
                     uint16_t old_PC = *PC;
-                    JRC(MEMORY[*PC-1]);
+                    JRC(*getReadAddress(*PC-1));
                     if(old_PC == *PC)
                         cpuCycles = 12;
                     else
@@ -494,7 +494,7 @@ void stepCPU(){
             }
             if(z == 1){
                 if(q == 0){
-                    uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
+                    uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
                     *PC += 3;
                     LD_16(rp[p], nn);
                     if(rp[p] == IX || rp[p] == IY)
@@ -524,7 +524,7 @@ void stepCPU(){
                         cpuCycles = 7;
                     }
                     if(p == 2){
-                        uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
+                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
                         *PC += 3;
                         LD_16((uint16_t*)getWriteAddress(nn), *(rp[2]));
                         if(rp[2] == HL)
@@ -533,7 +533,7 @@ void stepCPU(){
                             cpuCycles = 20;
                     }
                     if(p == 3){
-                        uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
+                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
                         *PC += 3;
                         LD_8((uint8_t*)getWriteAddress(nn), *A);
                         cpuCycles = 16;
@@ -551,14 +551,14 @@ void stepCPU(){
                         cpuCycles = 7;
                     }
                     if(p == 2){
-                        uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
+                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
                         uint16_t val = *(uint16_t*)getReadAddress(nn);
                         *PC += 3;
                         LD_16(rp[2], val);
                         cpuCycles = 16;
                     }
                     if(p == 3){
-                        uint16_t nn = *(uint16_t*)(MEMORY+*PC+1);
+                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
                         uint8_t val = *getReadAddress(nn);
                         *PC += 3;
                         LD_8(A, val);
@@ -590,7 +590,7 @@ void stepCPU(){
                 else
                     cpuCycles = 4;
                 if(y == 6)
-                    r[y] = getWriteAddress(r[y] - MEMORY);
+                    r[y] = getWriteAddress((uintptr_t)r[y]);
                 INC_8(r[y]);
             }
             if(z == 5){
@@ -603,7 +603,7 @@ void stepCPU(){
                 else
                     cpuCycles = 4;
                 if(y == 6)
-                    r[y] = getWriteAddress(r[y] - MEMORY);
+                    r[y] = getWriteAddress((uintptr_t)r[y]);
                 DEC_8(r[y]);
             }
             if(z == 6){
@@ -615,8 +615,8 @@ void stepCPU(){
                 else
                     cpuCycles = 7;
                 if(y == 6)
-                    r[y] = getWriteAddress(r[y] - MEMORY);
-                uint8_t val = MEMORY[*PC+1];
+                    r[y] = getWriteAddress((uintptr_t)r[y]);
+                uint8_t val = *getReadAddress(*PC+1);
                 *PC += 2;
                 LD_8(r[y], val);
             }
@@ -663,20 +663,21 @@ void stepCPU(){
                 else
                     cpuCycles = 4;
                 if(y == 6)
-                    r[y] = getWriteAddress(r[y] - MEMORY);
+                    r[y] = getWriteAddress((uintptr_t)r[y]);
                 if(z == 6)
-                    r[z] = getReadAddress(r[z] - MEMORY);
+                    r[z] = getReadAddress((uintptr_t)r[z]);
                 LD_8(r[y], *(r[z]));
             }
         }
         if(x == 2){
             if((prefixDD || prefixFD) && z == 6){
                 *PC += 1;
-                r[z] = getReadAddress(r[z] - MEMORY);
+                r[z] = getReadAddress((uintptr_t)r[z]);
                 cpuCycles = 19;
-            } else if(!prefixDD && !prefixFD && z == 6)
+            } else if(!prefixDD && !prefixFD && z == 6){
+                r[z] = getReadAddress((uintptr_t)r[z]);
                 cpuCycles = 7;
-            else
+            } else
                 cpuCycles = 4;
             aluFunc function = alu[y];
             *PC += 1;
@@ -750,7 +751,7 @@ void stepCPU(){
                 }
             }
             if(z == 2){
-                uint16_t val = *(uint16_t*)(MEMORY+*PC+1);
+                uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
                 *PC += 3;
                 if(y == 0){
                     JPNZ(val);
@@ -780,19 +781,19 @@ void stepCPU(){
             }
             if(z == 3){
                 if(y == 0){
-                    uint16_t val = *(uint16_t*)(MEMORY+*PC+1);
+                    uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
                     *PC += 3;
                     JP(val);
                     cpuCycles = 10;
                 }
                 if(y == 2){
-                    uint8_t ioaddr = MEMORY[*PC+1];
+                    uint8_t ioaddr = *getReadAddress(*PC+1);
                     *PC += 2;
                     OUT(IO+ioaddr, *A);
                     cpuCycles = 11;
                 }
                 if(y == 3){
-                    uint8_t ioaddr = MEMORY[*PC+1];
+                    uint8_t ioaddr = *getReadAddress(*PC+1);
                     *PC += 2;
                     IN(A, IO[ioaddr]);
                     cpuCycles = 11;
@@ -823,7 +824,7 @@ void stepCPU(){
                 }
             }
             if(z == 4){
-                uint16_t val = *(uint16_t*)(MEMORY+*PC+1);
+                uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
                 *PC += 3;
                 uint16_t old_PC = *PC;
                 if(y == 0){
@@ -866,7 +867,7 @@ void stepCPU(){
                 }
                 if(q == 1){
                     if(p == 0){
-                        uint16_t val = *(uint16_t*)(MEMORY+*PC+1);
+                        uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
                         *PC += 3;
                         CALL(val);
                         cpuCycles = 17;
@@ -874,7 +875,7 @@ void stepCPU(){
                 }
             }
             if(z == 6){
-                uint8_t val = MEMORY[*PC+1];
+                uint8_t val = *getReadAddress(*PC+1);
                 aluFunc function = alu[y];
                 *PC += 2;
                 (*function)(A, val);
@@ -1105,7 +1106,7 @@ void RETM(){
 }
 
 void POP(uint16_t* reg){
-    *reg = *(uint16_t*)(MEMORY+*SP);
+    *reg = *(uint16_t*)getReadAddress(*SP);
     *SP = *SP + 2; 
 }
 
@@ -1226,7 +1227,7 @@ void CALLM(uint16_t val){
 
 void PUSH(uint16_t val){
     *SP = *SP - 2;
-    *(uint16_t*)(MEMORY+*SP) = val;
+    *(uint16_t*)getWriteAddress(*SP) = val;
 }
 
 void RST(uint8_t addr){

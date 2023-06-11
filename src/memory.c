@@ -4,8 +4,9 @@
 // I/0 SPACE
 uint8_t IO[IO_SIZE];
 
-//RAM
-uint8_t* MEMORY;
+// MEMORY
+uint8_t* ROM;
+uint8_t* RAM;
 
 // Memory Mapped Registers
 uint8_t IN0;
@@ -28,17 +29,17 @@ uint8_t VOICE3_FREQ_VOL[5];
 uint8_t SPRITE_COORDS[16];
 uint8_t DIP_SWITCH_SETTINGS;
 uint8_t WATCHDOG_RESET;
-uint8_t NOT_MAPPED;
+uint8_t NOT_MAPPED[2];
 
 void initMemory(){
-    MEMORY = malloc(sizeof(uint8_t)*MEMORY_SIZE);
-    memset(MEMORY, 0, MEMORY_SIZE);
+    ROM = malloc(sizeof(uint8_t)*ROM_SIZE);
+    RAM = malloc(sizeof(uint8_t)*RAM_SIZE);
     memset(IO, 0, IO_SIZE);
 
-    loadROM("data/ROM/pacman.6e", 0x1000, MEMORY       );
-    loadROM("data/ROM/pacman.6f", 0x1000, MEMORY+0x1000);
-    loadROM("data/ROM/pacman.6h", 0x1000, MEMORY+0x2000);
-    loadROM("data/ROM/pacman.6j", 0x1000, MEMORY+0x3000);
+    loadROM("data/ROM/pacman.6e", 0x1000, ROM       );
+    loadROM("data/ROM/pacman.6f", 0x1000, ROM+0x1000);
+    loadROM("data/ROM/pacman.6h", 0x1000, ROM+0x2000);
+    loadROM("data/ROM/pacman.6j", 0x1000, ROM+0x3000);
 
     IN0                   = 0xFF;
     VBLANK_ENABLED        = 0x00;
@@ -63,14 +64,17 @@ void initMemory(){
 }
 
 void freeMemory(){
-    free(MEMORY);
+    free(ROM);
+    free(RAM);
 }
 
 uint8_t* getReadAddress(uint16_t address){
     address &= 0x7fff;
 
-    if(address < MEMORY_SIZE)
-        return MEMORY + address;
+    if(address < ROM_SIZE)
+        return ROM + address;
+    else if(address < 0x5000)
+        return RAM + (address - ROM_SIZE);
     else if(address == 0x5003)
         return &FLIP_SCREEN;
     else if(address == 0x5004)
@@ -92,11 +96,13 @@ uint8_t* getReadAddress(uint16_t address){
 uint8_t* getWriteAddress(uint16_t address){
     address &= 0x7fff;
 
-    if(address < 0x4000)
+    if(address < ROM_SIZE)
         printf("WRITE ON ROM ERROR! %X\n", *PC);
 
-    if(address < MEMORY_SIZE)
-        return MEMORY + address;
+    if(address < ROM_SIZE)
+        return ROM + address;
+    else if(address < 0x5000)
+        return RAM + (address - ROM_SIZE);
     else if(address == 0x5000)
         return &VBLANK_ENABLED;
     else if(address == 0x5001)
@@ -132,5 +138,5 @@ uint8_t* getWriteAddress(uint16_t address){
     else if(address >= 0x50C0 && address <= 0x50FF)
         return &WATCHDOG_RESET;
     else 
-        return &NOT_MAPPED;
+        return NOT_MAPPED;
 }

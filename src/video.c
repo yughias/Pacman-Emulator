@@ -31,9 +31,9 @@ void initVideoData(){
     loadROM("data/ROM/pacman.5e", 4096, tileROM);
     loadROM("data/ROM/pacman.5f", 4096, spriteROM);
 
-    palettesInfo = MEMORY + PALETTE_RAM;
-    tilesInfo    = MEMORY + TILE_RAM; 
-    spritesInfo  = MEMORY + SPRITE_RAM;
+    palettesInfo = getReadAddress(PALETTE_RAM);
+    tilesInfo    = getReadAddress(TILE_RAM); 
+    spritesInfo  = getReadAddress(SPRITE_RAM);
 }
 
 void freeVideoData(){
