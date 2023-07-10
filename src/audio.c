@@ -80,7 +80,7 @@ uint16_t generateAudioSample(){
     deviceSample += sample*volume;
 
     deviceSample *= volumeMultiplier;
-
+    
     return deviceSample;
 }
 

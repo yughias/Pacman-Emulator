@@ -1,13 +1,14 @@
-#include <stdio.h>
 #include "frontend.h"
 #include "gameState.h"
 #include "hardware.h"
-#include "SDL_MAINLOOP.h"
 
 bool         emulationStopped = false;
 bool         soundMute        = false;
 unsigned int emulationSpeed   = 1;
 unsigned int volumeMultiplier = 20;
+
+bool         usingShader = false; 
+Shader       crtShader;
 
 void printInfo(){
     printf("PAC-MAN EMULATOR\n");
@@ -49,6 +50,11 @@ void updateHotKeys(const Uint8* keyState){
             case SDLK_F1:
             soundMute = !soundMute;
             break;
+
+            case SDLK_RETURN:
+                if(keyState[SDL_SCANCODE_RALT])
+                    fullScreen();
+            break;
         }
     }
 
@@ -78,6 +84,18 @@ void updateHotKeys(const Uint8* keyState){
 
             case SDLK_F7:
             loadState();
+            break;
+
+            case SDLK_F8:
+            if(usingShader){
+                setScaleMode(NEAREST);
+                noGlobalShader();
+            } else {
+                setScaleMode(LINEAR);
+                setGlobalShader(crtShader);
+            }
+            usingShader = !usingShader;
+            break;
         }
     }
 }

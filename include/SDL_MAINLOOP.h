@@ -2,6 +2,15 @@
 #define _SDL_MAINLOOP_H_
 
 #include <SDL2/SDL.h>
+
+#ifdef MAINLOOP_AUDIO
+#include <SDL2/SDL_mixer.h>
+#endif
+
+#ifdef MAINLOOP_GL
+#include <SDL2/SDL_opengl.h>
+#endif
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -21,8 +30,8 @@ typedef Uint32 button;
 
 extern unsigned int displayWidth;
 extern unsigned int displayHeight;
-extern unsigned int width;
-extern unsigned int height;
+extern int width;
+extern int height;
 extern int* pixels;
 
 extern unsigned int frameRate;
@@ -58,5 +67,24 @@ int blue(int);
 extern void (*onExit)();
 extern void (*onKeyPressed)(keyboard);
 extern void (*onKeyReleased)(keyboard);
+
+#ifdef MAINLOOP_AUDIO
+typedef Mix_Chunk Sound;
+
+// Audio function 
+Sound* loadSound(const char*);
+void playSound(Sound*);
+void freeSound(Sound*);
+#endif
+
+#ifdef MAINLOOP_GL
+typedef enum {NEAREST, LINEAR, ANISOTROPIC} ScaleMode;
+typedef GLuint* Shader;
+
+Shader loadShader(const char*);
+void noGlobalShader();
+void setGlobalShader(Shader);
+void setScaleMode(ScaleMode);
+#endif
 
 #endif

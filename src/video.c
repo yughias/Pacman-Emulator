@@ -160,7 +160,7 @@ void drawSprite(int offX, int offY, uint8_t spriteIdx, uint8_t paletteIdx, bool 
             if(spriteRGB[offSprite] != paletteRGB[0]){
                 int screenX = offX+x;
                 int screenY = (offY+y) % height;
-                if(screenX < width && screenY >= 16 && screenY < height - 16)
+                if(screenX > 0 && screenX < width && screenY >= 16 && screenY < height - 16)
                     pixels[screenX+screenY*width] = spriteRGB[offSprite];
             }
             spriteX += stepX;

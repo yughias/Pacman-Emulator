@@ -24,12 +24,12 @@ const char bonus_score_descriptor[4][32] = {
 
 const char difficulty_descriptor[2][32] = {
     "hard mode",
-    "normale mode"
+    "normal mode"
 };
 
 const char ghost_names_descriptor[2][32] = {
     "alternate ghost names",
-    "normale ghost names"
+    "normal ghost names"
 };
 
 void updateInput(const Uint8* keyState){

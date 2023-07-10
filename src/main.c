@@ -1,4 +1,3 @@
-#include <SDL_MAINLOOP.h>
 #include <frontend.h>
 #include <hardware.h>
 
@@ -6,6 +5,8 @@ void setup(){
     size(224, 288);
     setTitle("PAC-MAN");
     setWindowIcon("data/logo.bmp");
+    setScaleMode(NEAREST);
+    crtShader = loadShader("data/shader/crt.glsl");
     frameRate(60);
     initAll();
     printInfo();

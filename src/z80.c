@@ -311,13 +311,13 @@ void stepCPU(){
             if(z == 0){
                 *PC += 1;
                 if(y != 6){
-                    IN(r[y], IO[*C]);
+                    OPCODE_IN(r[y], IO[*C]);
                     setSign8Bit(*(r[y]));
                     setParity(*(r[y]));
                     setSign8Bit(*r[y]);
                 } else {
                     uint8_t copy = *A;
-                    IN(A, IO[*C]);
+                    OPCODE_IN(A, IO[*C]);
                     setSign8Bit(*A);
                     setParity(*A);
                     setSign8Bit(*A);
@@ -328,12 +328,12 @@ void stepCPU(){
             if(z == 1){
                 *PC += 1;
                 if(y != 6){
-                    OUT(IO+*C, *(r[y]));
+                    OPCODE_OUT(IO+*C, *(r[y]));
                     setSign8Bit(*(r[y]));
                     setParity(*(r[y]));
                     setSign8Bit(*(r[y]));
                 } else {
-                    OUT(IO+*C, 0);
+                    OPCODE_OUT(IO+*C, 0);
                     setSign8Bit(*A);
                     setParity(*A);
                     setSign8Bit(*A);
@@ -788,13 +788,13 @@ void stepCPU(){
                 if(y == 2){
                     uint8_t ioaddr = *getReadAddress(*PC+1);
                     *PC += 2;
-                    OUT(IO+ioaddr, *A);
+                    OPCODE_OUT(IO+ioaddr, *A);
                     cpuCycles = 11;
                 }
                 if(y == 3){
                     uint8_t ioaddr = *getReadAddress(*PC+1);
                     *PC += 2;
-                    IN(A, IO[ioaddr]);
+                    OPCODE_IN(A, IO[ioaddr]);
                     cpuCycles = 11;
                 }
                 if(y == 4){
@@ -1163,11 +1163,11 @@ void JPM(uint16_t val){
         JP(val);
 }
 
-void OUT(uint8_t* io, uint8_t val){
+void OPCODE_OUT(uint8_t* io, uint8_t val){
     *io = val;
 }
 
-void IN(uint8_t* reg, uint8_t val){
+void OPCODE_IN(uint8_t* reg, uint8_t val){
     *reg = val;
 }
 
@@ -1794,14 +1794,14 @@ void CPDR(){
 }
 
 void INI(){
-    IN(getWriteAddress(*HL), IO[*C]); 
+    OPCODE_IN(getWriteAddress(*HL), IO[*C]); 
     *HL += 1;
     *B -= 1;  
     cpuCycles = 16;
 }
 
 void IND(){
-    IN(getWriteAddress(*HL), IO[*C]); 
+    OPCODE_IN(getWriteAddress(*HL), IO[*C]); 
     *HL -= 1;
     *B -= 1;  
     cpuCycles = 16;
@@ -1826,14 +1826,14 @@ void INDR(){
 }
 
 void OUTI(){
-    OUT(IO+*C, *getReadAddress(*HL));
+    OPCODE_OUT(IO+*C, *getReadAddress(*HL));
     *HL += 1;
     *B -= 1;
     cpuCycles = 16;
 }
 
 void OUTD(){
-    OUT(IO+*C, *getReadAddress(*HL));
+    OPCODE_OUT(IO+*C, *getReadAddress(*HL));
     *HL -= 1;
     *B -= 1;
     cpuCycles = 16;
