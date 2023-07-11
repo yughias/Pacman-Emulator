@@ -24,4 +24,5 @@ void loop(){
     updateHotKeys(keyState);
 
     drawVideo();
+    updateFrontendMessage();
 }

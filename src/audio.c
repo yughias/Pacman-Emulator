@@ -79,7 +79,7 @@ uint16_t generateAudioSample(){
     volume = VOICE3_FREQ_VOL[4] & 0xf;
     deviceSample += sample*volume;
 
-    deviceSample *= volumeMultiplier;
+    deviceSample *= volumeMultiplier*VOLUME_MULTIPLIER_LIMIT/100;
     
     return deviceSample;
 }
