@@ -387,8 +387,6 @@ GLuint compileShader(const char* source, GLuint shaderType) {
 		}
 		glDeleteShader(result);
 		result = 0;
-	} else {
-		printf("Shader compiled correctly. Id = %d\n", result);
 	}
 	return result;
 }
