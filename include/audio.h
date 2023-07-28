@@ -8,6 +8,6 @@
 
 void initAudioData();
 void freeAudioData();
-uint16_t generateAudioSample();
+void calculateVolume();
 
 #endif

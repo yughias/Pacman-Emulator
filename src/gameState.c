@@ -3,8 +3,8 @@
 #include "romset.h"
 
 void saveState(){
-    char filename[64];
-    snprintf(filename, 63, "data/%s.state", romsetArray[currentRom]->name);
+    char filename[128];
+    snprintf(filename, 127, "data/savestate/%s.state", romsetArray[currentRom]->name);
     FILE* fptr = fopen(filename, "wb");
     
     // MEMORY DUMP
@@ -57,8 +57,8 @@ void saveState(){
 }
 
 void loadState(){
-    char filename[64];
-    snprintf(filename, 63, "data/%s.state", romsetArray[currentRom]->name);
+    char filename[128];
+    snprintf(filename, 127, "data/savestate/%s.state", romsetArray[currentRom]->name);
     FILE* fptr = fopen(filename, "rb");
     
     // MEMORY DUMP

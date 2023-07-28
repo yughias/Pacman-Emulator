@@ -2,6 +2,7 @@
 #include "frontend.h"
 #include "romset.h"
 #include "SDL_MAINLOOP.h"
+#include <math.h>
 
 uint8_t* AUDIO_ROM;
 uint32_t VOICE_ACCUMULATOR[3];
@@ -9,6 +10,9 @@ uint32_t VOICE_ACCUMULATOR[3];
 SDL_AudioSpec audioSpec;
 SDL_AudioDeviceID audioDev;
 
+float volumeMultiplier;
+
+uint16_t generateAudioSample();
 void audioCallback(void*, Uint8*, int);
 
 void initAudioData(){
@@ -24,13 +28,20 @@ void initAudioData(){
     AUDIO_ROM = malloc(sizeof(uint8_t)*AUDIO_ROM_SIZE);
     loadROM("82s126.1m", 256, AUDIO_ROM);
     loadROM("82s126.3m", 256, AUDIO_ROM+256);
-
+    calculateVolume();
     SDL_PauseAudioDevice(audioDev, 0);
 }
 
 void freeAudioData(){
     free(AUDIO_ROM);
     SDL_CloseAudioDevice(audioDev);
+}
+
+void calculateVolume(){
+    // scale audio from 0 to 95 to avoid overflow
+    volumeMultiplier = volumeScaler*VOLUME_MULTIPLIER_LIMIT/100.0f;
+    // increase amplitude exponentially, since decibels are logarithmics
+    volumeMultiplier = pow(VOLUME_MULTIPLIER_LIMIT+1, volumeMultiplier/100.0f) - 1;
 }
 
 uint16_t generateAudioSample(){
@@ -77,8 +88,6 @@ uint16_t generateAudioSample(){
     sample = AUDIO_ROM[32*waveform+idx];
     volume = VOICE3_FREQ_VOL[4] & 0xf;
     deviceSample += sample*volume;
-
-    deviceSample *= volumeMultiplier*VOLUME_MULTIPLIER_LIMIT/100;
     
     return deviceSample;
 }
@@ -86,5 +95,5 @@ uint16_t generateAudioSample(){
 void audioCallback(void* userdata, Uint8* stream, int len){
     len /= 2;
     for(size_t i = 0; i < len; i++)
-        ((uint16_t*)stream)[i] = generateAudioSample();
+        ((uint16_t*)stream)[i] = generateAudioSample()*volumeMultiplier;
 }

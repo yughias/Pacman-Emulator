@@ -44,19 +44,20 @@ int currentRom = 0;
 char romPath[] = "data/ROM";
 
 void loadROM(const char* romname, size_t size, uint8_t* buffer){
-    char filename[64];
-    snprintf(filename, 63, "%s/%s/%s", romPath, romsetArray[currentRom]->name, romname);
+    char filename[128];
+    snprintf(filename, 127, "%s/%s/%s", romPath, romsetArray[currentRom]->name, romname);
     FILE* fptr = fopen(filename, "rb");
     fread(buffer, 1, size, fptr);
     fclose(fptr);
 }
 
-// decrypt functions
+// decrypt functions and utilities
 uint16_t decryptAddr1(uint16_t);
 uint16_t decryptAddr2(uint16_t);
 uint8_t decryptByte(uint8_t);
 uint8_t swapByte(uint8_t, const uint8_t*);
 uint8_t decryptPacplus(uint16_t, uint8_t);
+void initAuxBoard_mspacman();
 
 // init functions
 void initMemory_pacman(){
@@ -76,78 +77,7 @@ void initMemory_pacman(){
 
 void initMemory_mspacman(){
     initMemory_pacman();
-
-    AUX_INSTALLED = true;
-    AUX_ROM_LOW = malloc(ROM_SIZE);
-    AUX_ROM_HIGH = malloc(0x1800);
-
-    
-    uint8_t* U6 = malloc(0x1000);
-    uint8_t* U7 = malloc(0x1000);
-    uint8_t* U5 = malloc(0x0800);
-
-    loadROM("u6",        0x1000, U6);
-    loadROM("u7",        0x1000, U7);
-    loadROM("u5",        0x0800, U5);
-
-    memcpy(AUX_ROM_LOW, ROM, 0x3000);
-
-    for(uint16_t i = 0; i < 0x1000; i++){
-        AUX_ROM_LOW[0x3000+decryptAddr1(i)]  = decryptByte(U7[i]);
-        AUX_ROM_HIGH[0x800+decryptAddr1(i)] = decryptByte(U6[i]);
-    }
-
-    for(uint16_t i = 0; i < 0x0800; i++)
-        AUX_ROM_HIGH[decryptAddr2(i)] = decryptByte(U5[i]);
-
-    for(int i = 0; i < 8; i++){
-        AUX_ROM_LOW[0x0410+i] = AUX_ROM_HIGH[0x0008+i];
-        AUX_ROM_LOW[0x08E0+i] = AUX_ROM_HIGH[0x01D8+i];
-        AUX_ROM_LOW[0x0A30+i] = AUX_ROM_HIGH[0x0118+i];
-        AUX_ROM_LOW[0x0BD0+i] = AUX_ROM_HIGH[0x00D8+i];
-        AUX_ROM_LOW[0x0C20+i] = AUX_ROM_HIGH[0x0120+i];
-        AUX_ROM_LOW[0x0E58+i] = AUX_ROM_HIGH[0x0168+i];
-        AUX_ROM_LOW[0x0EA8+i] = AUX_ROM_HIGH[0x0198+i];
-
-        AUX_ROM_LOW[0x1000+i] = AUX_ROM_HIGH[0x0020+i];
-        AUX_ROM_LOW[0x1008+i] = AUX_ROM_HIGH[0x0010+i];
-        AUX_ROM_LOW[0x1288+i] = AUX_ROM_HIGH[0x0098+i];
-        AUX_ROM_LOW[0x1348+i] = AUX_ROM_HIGH[0x0048+i];
-        AUX_ROM_LOW[0x1688+i] = AUX_ROM_HIGH[0x0088+i];
-        AUX_ROM_LOW[0x16B0+i] = AUX_ROM_HIGH[0x0188+i];
-        AUX_ROM_LOW[0x16D8+i] = AUX_ROM_HIGH[0x00C8+i];
-        AUX_ROM_LOW[0x16F8+i] = AUX_ROM_HIGH[0x01C8+i];
-        AUX_ROM_LOW[0x19A8+i] = AUX_ROM_HIGH[0x00A8+i];
-        AUX_ROM_LOW[0x19B8+i] = AUX_ROM_HIGH[0x01A8+i];
-
-        AUX_ROM_LOW[0x2060+i] = AUX_ROM_HIGH[0x0148+i];
-        AUX_ROM_LOW[0x2108+i] = AUX_ROM_HIGH[0x0018+i];
-        AUX_ROM_LOW[0x21A0+i] = AUX_ROM_HIGH[0x01A0+i];
-        AUX_ROM_LOW[0x2298+i] = AUX_ROM_HIGH[0x00A0+i];
-        AUX_ROM_LOW[0x23E0+i] = AUX_ROM_HIGH[0x00E8+i];
-        AUX_ROM_LOW[0x2418+i] = AUX_ROM_HIGH[0x0000+i];
-        AUX_ROM_LOW[0x2448+i] = AUX_ROM_HIGH[0x0058+i];
-        AUX_ROM_LOW[0x2470+i] = AUX_ROM_HIGH[0x0140+i];
-        AUX_ROM_LOW[0x2488+i] = AUX_ROM_HIGH[0x0080+i];
-        AUX_ROM_LOW[0x24B0+i] = AUX_ROM_HIGH[0x0180+i];
-        AUX_ROM_LOW[0x24D8+i] = AUX_ROM_HIGH[0x00C0+i];
-        AUX_ROM_LOW[0x24F8+i] = AUX_ROM_HIGH[0x01C0+i];
-        AUX_ROM_LOW[0x2748+i] = AUX_ROM_HIGH[0x0050+i];
-        AUX_ROM_LOW[0x2780+i] = AUX_ROM_HIGH[0x0090+i];
-        AUX_ROM_LOW[0x27B8+i] = AUX_ROM_HIGH[0x0190+i];
-        AUX_ROM_LOW[0x2800+i] = AUX_ROM_HIGH[0x0028+i];
-        AUX_ROM_LOW[0x2B20+i] = AUX_ROM_HIGH[0x0100+i];
-        AUX_ROM_LOW[0x2B30+i] = AUX_ROM_HIGH[0x0110+i];
-        AUX_ROM_LOW[0x2BF0+i] = AUX_ROM_HIGH[0x01D0+i];
-        AUX_ROM_LOW[0x2CC0+i] = AUX_ROM_HIGH[0x00D0+i];
-        AUX_ROM_LOW[0x2CD8+i] = AUX_ROM_HIGH[0x00E0+i];
-        AUX_ROM_LOW[0x2CF0+i] = AUX_ROM_HIGH[0x01E0+i];
-        AUX_ROM_LOW[0x2D60+i] = AUX_ROM_HIGH[0x0160+i];
-    }
-
-    free(U6);
-    free(U7);
-    free(U5);
+    initAuxBoard_mspacman();
 }
 
 void initMemory_pacmanf(){
@@ -167,78 +97,7 @@ void initMemory_pacmanf(){
 
 void initMemory_mspacmnf(){
     initMemory_pacmanf();
-
-    AUX_INSTALLED = true;
-    AUX_ROM_LOW = malloc(ROM_SIZE);
-    AUX_ROM_HIGH = malloc(0x1800);
-
-    
-    uint8_t* U6 = malloc(0x1000);
-    uint8_t* U7 = malloc(0x1000);
-    uint8_t* U5 = malloc(0x0800);
-
-    loadROM("u6",        0x1000, U6);
-    loadROM("u7",        0x1000, U7);
-    loadROM("u5",        0x0800, U5);
-
-    memcpy(AUX_ROM_LOW, ROM, 0x3000);
-
-    for(uint16_t i = 0; i < 0x1000; i++){
-        AUX_ROM_LOW[0x3000+decryptAddr1(i)]  = decryptByte(U7[i]);
-        AUX_ROM_HIGH[0x800+decryptAddr1(i)] = decryptByte(U6[i]);
-    }
-
-    for(uint16_t i = 0; i < 0x0800; i++)
-        AUX_ROM_HIGH[decryptAddr2(i)] = decryptByte(U5[i]);
-
-    for(int i = 0; i < 8; i++){
-        AUX_ROM_LOW[0x0410+i] = AUX_ROM_HIGH[0x0008+i];
-        AUX_ROM_LOW[0x08E0+i] = AUX_ROM_HIGH[0x01D8+i];
-        AUX_ROM_LOW[0x0A30+i] = AUX_ROM_HIGH[0x0118+i];
-        AUX_ROM_LOW[0x0BD0+i] = AUX_ROM_HIGH[0x00D8+i];
-        AUX_ROM_LOW[0x0C20+i] = AUX_ROM_HIGH[0x0120+i];
-        AUX_ROM_LOW[0x0E58+i] = AUX_ROM_HIGH[0x0168+i];
-        AUX_ROM_LOW[0x0EA8+i] = AUX_ROM_HIGH[0x0198+i];
-
-        AUX_ROM_LOW[0x1000+i] = AUX_ROM_HIGH[0x0020+i];
-        AUX_ROM_LOW[0x1008+i] = AUX_ROM_HIGH[0x0010+i];
-        AUX_ROM_LOW[0x1288+i] = AUX_ROM_HIGH[0x0098+i];
-        AUX_ROM_LOW[0x1348+i] = AUX_ROM_HIGH[0x0048+i];
-        AUX_ROM_LOW[0x1688+i] = AUX_ROM_HIGH[0x0088+i];
-        AUX_ROM_LOW[0x16B0+i] = AUX_ROM_HIGH[0x0188+i];
-        AUX_ROM_LOW[0x16D8+i] = AUX_ROM_HIGH[0x00C8+i];
-        AUX_ROM_LOW[0x16F8+i] = AUX_ROM_HIGH[0x01C8+i];
-        AUX_ROM_LOW[0x19A8+i] = AUX_ROM_HIGH[0x00A8+i];
-        AUX_ROM_LOW[0x19B8+i] = AUX_ROM_HIGH[0x01A8+i];
-
-        AUX_ROM_LOW[0x2060+i] = AUX_ROM_HIGH[0x0148+i];
-        AUX_ROM_LOW[0x2108+i] = AUX_ROM_HIGH[0x0018+i];
-        AUX_ROM_LOW[0x21A0+i] = AUX_ROM_HIGH[0x01A0+i];
-        AUX_ROM_LOW[0x2298+i] = AUX_ROM_HIGH[0x00A0+i];
-        AUX_ROM_LOW[0x23E0+i] = AUX_ROM_HIGH[0x00E8+i];
-        AUX_ROM_LOW[0x2418+i] = AUX_ROM_HIGH[0x0000+i];
-        AUX_ROM_LOW[0x2448+i] = AUX_ROM_HIGH[0x0058+i];
-        AUX_ROM_LOW[0x2470+i] = AUX_ROM_HIGH[0x0140+i];
-        AUX_ROM_LOW[0x2488+i] = AUX_ROM_HIGH[0x0080+i];
-        AUX_ROM_LOW[0x24B0+i] = AUX_ROM_HIGH[0x0180+i];
-        AUX_ROM_LOW[0x24D8+i] = AUX_ROM_HIGH[0x00C0+i];
-        AUX_ROM_LOW[0x24F8+i] = AUX_ROM_HIGH[0x01C0+i];
-        AUX_ROM_LOW[0x2748+i] = AUX_ROM_HIGH[0x0050+i];
-        AUX_ROM_LOW[0x2780+i] = AUX_ROM_HIGH[0x0090+i];
-        AUX_ROM_LOW[0x27B8+i] = AUX_ROM_HIGH[0x0190+i];
-        AUX_ROM_LOW[0x2800+i] = AUX_ROM_HIGH[0x0028+i];
-        AUX_ROM_LOW[0x2B20+i] = AUX_ROM_HIGH[0x0100+i];
-        AUX_ROM_LOW[0x2B30+i] = AUX_ROM_HIGH[0x0110+i];
-        AUX_ROM_LOW[0x2BF0+i] = AUX_ROM_HIGH[0x01D0+i];
-        AUX_ROM_LOW[0x2CC0+i] = AUX_ROM_HIGH[0x00D0+i];
-        AUX_ROM_LOW[0x2CD8+i] = AUX_ROM_HIGH[0x00E0+i];
-        AUX_ROM_LOW[0x2CF0+i] = AUX_ROM_HIGH[0x01E0+i];
-        AUX_ROM_LOW[0x2D60+i] = AUX_ROM_HIGH[0x0160+i];
-    }
-
-    free(U6);
-    free(U7);
-    free(U5);
+    initAuxBoard_mspacman();
 }
 
 void initMemory_pacmod(){
@@ -402,4 +261,78 @@ uint8_t decryptPacplus(uint16_t addr, uint8_t byte){
 
 	tbl = swap_xor_table[method];
 	return swapByte(byte, tbl) ^ tbl[8];
+}
+
+void initAuxBoard_mspacman(){
+    AUX_INSTALLED = true;
+    AUX_ROM_LOW = malloc(ROM_SIZE);
+    AUX_ROM_HIGH = malloc(0x1800);
+
+    
+    uint8_t* U6 = malloc(0x1000);
+    uint8_t* U7 = malloc(0x1000);
+    uint8_t* U5 = malloc(0x0800);
+
+    loadROM("u6",        0x1000, U6);
+    loadROM("u7",        0x1000, U7);
+    loadROM("u5",        0x0800, U5);
+
+    memcpy(AUX_ROM_LOW, ROM, 0x3000);
+
+    for(uint16_t i = 0; i < 0x1000; i++){
+        AUX_ROM_LOW[0x3000+decryptAddr1(i)]  = decryptByte(U7[i]);
+        AUX_ROM_HIGH[0x800+decryptAddr1(i)] = decryptByte(U6[i]);
+    }
+
+    for(uint16_t i = 0; i < 0x0800; i++)
+        AUX_ROM_HIGH[decryptAddr2(i)] = decryptByte(U5[i]);
+
+    for(int i = 0; i < 8; i++){
+        AUX_ROM_LOW[0x0410+i] = AUX_ROM_HIGH[0x0008+i];
+        AUX_ROM_LOW[0x08E0+i] = AUX_ROM_HIGH[0x01D8+i];
+        AUX_ROM_LOW[0x0A30+i] = AUX_ROM_HIGH[0x0118+i];
+        AUX_ROM_LOW[0x0BD0+i] = AUX_ROM_HIGH[0x00D8+i];
+        AUX_ROM_LOW[0x0C20+i] = AUX_ROM_HIGH[0x0120+i];
+        AUX_ROM_LOW[0x0E58+i] = AUX_ROM_HIGH[0x0168+i];
+        AUX_ROM_LOW[0x0EA8+i] = AUX_ROM_HIGH[0x0198+i];
+
+        AUX_ROM_LOW[0x1000+i] = AUX_ROM_HIGH[0x0020+i];
+        AUX_ROM_LOW[0x1008+i] = AUX_ROM_HIGH[0x0010+i];
+        AUX_ROM_LOW[0x1288+i] = AUX_ROM_HIGH[0x0098+i];
+        AUX_ROM_LOW[0x1348+i] = AUX_ROM_HIGH[0x0048+i];
+        AUX_ROM_LOW[0x1688+i] = AUX_ROM_HIGH[0x0088+i];
+        AUX_ROM_LOW[0x16B0+i] = AUX_ROM_HIGH[0x0188+i];
+        AUX_ROM_LOW[0x16D8+i] = AUX_ROM_HIGH[0x00C8+i];
+        AUX_ROM_LOW[0x16F8+i] = AUX_ROM_HIGH[0x01C8+i];
+        AUX_ROM_LOW[0x19A8+i] = AUX_ROM_HIGH[0x00A8+i];
+        AUX_ROM_LOW[0x19B8+i] = AUX_ROM_HIGH[0x01A8+i];
+
+        AUX_ROM_LOW[0x2060+i] = AUX_ROM_HIGH[0x0148+i];
+        AUX_ROM_LOW[0x2108+i] = AUX_ROM_HIGH[0x0018+i];
+        AUX_ROM_LOW[0x21A0+i] = AUX_ROM_HIGH[0x01A0+i];
+        AUX_ROM_LOW[0x2298+i] = AUX_ROM_HIGH[0x00A0+i];
+        AUX_ROM_LOW[0x23E0+i] = AUX_ROM_HIGH[0x00E8+i];
+        AUX_ROM_LOW[0x2418+i] = AUX_ROM_HIGH[0x0000+i];
+        AUX_ROM_LOW[0x2448+i] = AUX_ROM_HIGH[0x0058+i];
+        AUX_ROM_LOW[0x2470+i] = AUX_ROM_HIGH[0x0140+i];
+        AUX_ROM_LOW[0x2488+i] = AUX_ROM_HIGH[0x0080+i];
+        AUX_ROM_LOW[0x24B0+i] = AUX_ROM_HIGH[0x0180+i];
+        AUX_ROM_LOW[0x24D8+i] = AUX_ROM_HIGH[0x00C0+i];
+        AUX_ROM_LOW[0x24F8+i] = AUX_ROM_HIGH[0x01C0+i];
+        AUX_ROM_LOW[0x2748+i] = AUX_ROM_HIGH[0x0050+i];
+        AUX_ROM_LOW[0x2780+i] = AUX_ROM_HIGH[0x0090+i];
+        AUX_ROM_LOW[0x27B8+i] = AUX_ROM_HIGH[0x0190+i];
+        AUX_ROM_LOW[0x2800+i] = AUX_ROM_HIGH[0x0028+i];
+        AUX_ROM_LOW[0x2B20+i] = AUX_ROM_HIGH[0x0100+i];
+        AUX_ROM_LOW[0x2B30+i] = AUX_ROM_HIGH[0x0110+i];
+        AUX_ROM_LOW[0x2BF0+i] = AUX_ROM_HIGH[0x01D0+i];
+        AUX_ROM_LOW[0x2CC0+i] = AUX_ROM_HIGH[0x00D0+i];
+        AUX_ROM_LOW[0x2CD8+i] = AUX_ROM_HIGH[0x00E0+i];
+        AUX_ROM_LOW[0x2CF0+i] = AUX_ROM_HIGH[0x01E0+i];
+        AUX_ROM_LOW[0x2D60+i] = AUX_ROM_HIGH[0x0160+i];
+    }
+
+    free(U6);
+    free(U7);
+    free(U5);
 }

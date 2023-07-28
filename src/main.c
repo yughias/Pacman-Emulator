@@ -11,20 +11,22 @@ void setup(){
     frameRate(60);
 
     initAll();
-    printInfo();
     onExit = freeAll;
 }
 
 void loop(){
-    if(!emulationStopped)
+    if(!emulationStopped && !startupScreen)
         for(size_t i = 0; i < emulationSpeed; i++){
             emulateHardware();
         }
 
     const Uint8* keyState = SDL_GetKeyboardState(NULL);
-    updateInput(keyState);
     updateHotKeys(keyState);
+    updateInput(keyState);
 
     drawVideo();
     updateFrontendMessage();
+
+    if(startupScreen)
+        showStartupScreen();
 }

@@ -37,42 +37,23 @@ const char ghost_names_descriptor[2][32] = {
 char         message[33]      = "\0";
 uint64_t     remaining_frames = 0;
 
+bool         startupScreen      = true;
 bool         emulationStopped = false;
 bool         soundMute        = false;
 unsigned int emulationSpeed   = 1;
-unsigned int volumeMultiplier = 50;
+unsigned int volumeScaler = 50;
 
 bool         usingShader = false; 
 Shader       crtShader;
 
-void printInfo(){
-    printf("PAC-MAN EMULATOR\n");
-    printf("MADE BY YUGHIAS!\n\n");
-    printf("ARCADE COMMANDS\n");
-    printf("1:\t\tSTART ONE PLAYER MODE\n");
-    printf("2:\t\tSTART TWO PLAYER MODE\n");
-    printf("6:\t\tCHANGE COIN PER GAME\n");
-    printf("7:\t\tCHANGE LIVES PER GAME\n");
-    printf("8:\t\tCHANGE BONUS SCORE FOR EXTRA LIFE\n");
-    printf("9:\t\tCHANGE DIFFICULTY\n");
-    printf("0:\t\tCHANGE GHOST NAMES\n");
-    printf("ARROW KEYS:\tPLAYER ONE JOYSTICK\n");
-    printf("RIGHT SHIFT:\tINSERT COIN\n");
-    printf("\n");
-    printf("HOTKEYS\n");
-    printf("CAPS:\t\tENABLE/DISABLE TURBO MODE\n");
-    printf("F1:\t\tMUTE/UNMUTE\n");
-    printf("F2:\t\tDECREASE VOLUME\n");
-    printf("F3:\t\tINCREASE VOLUME\n");
-    printf("F4:\t\tSTOP/RESUME EMULATION\n");
-    printf("F5:\t\tRESET EMULATION\n");
-    printf("F6:\t\tSAVE STATE\n");
-    printf("F7:\t\tLOAD STATE\n");
-    printf("\n");
-    printf("LOG\n");
-}
-
 void updateHotKeys(const Uint8* keyState){
+    if(startupScreen){
+        if(isKeyReleased && keyReleased == SDLK_RETURN)
+            startupScreen = false;
+        else
+            return;
+    }
+
     if(isKeyReleased){
         switch(keyReleased){
             case SDLK_CAPSLOCK:
@@ -103,16 +84,18 @@ void updateHotKeys(const Uint8* keyState){
             break;
 
             case SDLK_F2:
-            if(volumeMultiplier != 0)
-                volumeMultiplier--;
-            snprintf(message, 31, "VOLUME %d", volumeMultiplier);
+            if(volumeScaler != 0)
+                volumeScaler--;
+            calculateVolume();
+            snprintf(message, 31, "VOLUME %d", volumeScaler);
             remaining_frames = MESSAGE_FRAME_TIME;
             break;
 
             case SDLK_F3:
-            if(volumeMultiplier < 100)
-                volumeMultiplier++;
-            snprintf(message, 31, "VOLUME %d", volumeMultiplier);
+            if(volumeScaler < 100)
+                volumeScaler++;
+            calculateVolume();
+            snprintf(message, 31, "VOLUME %d", volumeScaler);
             remaining_frames = MESSAGE_FRAME_TIME;
             break;
 
@@ -187,4 +170,37 @@ void updateFrontendMessage(){
 void setFrontendMessage(const char* string){
     strncpy(message, string, 32);
     remaining_frames = MESSAGE_FRAME_TIME;
+}
+
+void showStartupScreen(){
+    background(0, 0, 0);
+
+    showText("PACMAN CABINET EMULATOR",      0, 1);
+    showText("MADE BY YUGHIAS",              0, 2);
+    
+    showText("SUPPORTED ROMS",               0, 5);
+    showText("PACMAN         MSPACMAN",      0, 6);
+    showText("PACMAN FAST    MSPACMAN FAST", 0, 7);
+    showText("PACMAN HARDER  PACMAN PLUS",   0, 8);
+    
+    showText("CABINET CONTROLS",             0, 11);
+    showText("ARROW KEYS    MOVE JOYSTICK",  0, 12);
+    showText("LEFT SHIFT    INSERT COIN",    0, 13);
+    showText("1             1 PLAYER START", 0, 14);
+    showText("2             2 PLAYER START", 0, 15);
+
+    showText("HOTKEYS",                      0, 18);
+    showText("F1            MUTE VOLUME",    0, 19);
+    showText("F2            VOLUME DOWN",    0, 20);
+    showText("F3            VOLUME UP",      0, 21);
+    showText("F4            PAUSE GAME",     0, 22);
+    showText("F5            RESET GAME",     0, 23);
+    showText("F6            SAVE STATE",     0, 24);
+    showText("F7            LOAD STATE",     0, 25);
+    showText("F8            RETRO SHADER",   0, 26);
+    showText("F9            CHANGE ROM",     0, 27);
+    showText("CAPS LOCK     TURBO MODE",     0, 28);
+    showText("ALT RETURN    FULL SCREEN",    0, 29);
+
+    showText("PRESS RETURN TO CONTINUE",     0, 32);
 }

@@ -15,18 +15,19 @@ extern const char ghost_names_descriptor[2][32];
 extern char         message[33];
 extern uint64_t     remaining_frames;
 
+extern bool         startupScreen;
 extern bool         emulationStopped;
 extern bool         soundMute;
 extern unsigned int emulationSpeed;
-extern unsigned int volumeMultiplier;
+extern unsigned int volumeScaler;
 
 extern Shader crtShader;
 extern bool usingShader;
 
-void printInfo();
 void updateHotKeys(const Uint8*);
 void showText(const char*, int, int);
 void updateFrontendMessage();
 void setFrontendMessage(const char*);
+void showStartupScreen();
 
 #endif

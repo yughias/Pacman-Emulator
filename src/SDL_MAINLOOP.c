@@ -328,9 +328,7 @@ void fullScreen(){
 }
 
 void background(int red, int green, int blue){
-    #ifndef MAINLOOP_GL
     SDL_FillRect(surface, &surface->clip_rect, color(red, green, blue));
-    #endif
 }
 
 int color(int red, int green, int blue){

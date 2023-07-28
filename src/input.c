@@ -26,31 +26,26 @@ void updateInput(const Uint8* keyState){
         switch (keyReleased){
             case SDLK_6:
             info = increaseDipSwitch(MASK_COINS_PER_GAME, N_BITS_COINS_PER_GAME, SHIFT_COINS_PER_GAME);
-            printf("%s\n", coins_per_game_descriptor[info]);
             setFrontendMessage(coins_per_game_descriptor[info]);
             break;
 
             case SDLK_7:
             info = increaseDipSwitch(MASK_LIVES_PER_GAME, N_BITS_LIVES_PER_GAME, SHIFT_LIVES_PER_GAME);
-            printf("%s\n", lives_per_game_descriptor[info]);
             setFrontendMessage(lives_per_game_descriptor[info]);
             break;
 
             case SDLK_8:
             info = increaseDipSwitch(MASK_BONUS_SCORE, N_BITS_BONUS_SCORE, SHIFT_BONUS_SCORE);
-            printf("%s\n", bonus_score_descriptor[info]);
             setFrontendMessage(bonus_score_descriptor[info]);
             break;
 
             case SDLK_9:
             info = increaseDipSwitch(MASK_DIFFICULTY, N_BITS_DIFFICULTY, SHIFT_DIFFICULTY);
-            printf("%s\n", difficulty_descriptor[info]);
             setFrontendMessage(difficulty_descriptor[info]);
             break;
 
             case SDLK_0:
             info = increaseDipSwitch(MASK_GHOST_NAMES, N_BITS_GHOST_NAMES, SHIFT_GHOST_NAMES);
-            printf("%s\n", ghost_names_descriptor[info]);
             setFrontendMessage(ghost_names_descriptor[info]);
             break;
         }
