@@ -185,7 +185,7 @@ void showStartupScreen(){
     
     showText("CABINET CONTROLS",             0, 11);
     showText("ARROW KEYS    MOVE JOYSTICK",  0, 12);
-    showText("LEFT SHIFT    INSERT COIN",    0, 13);
+    showText("RIGHT SHIFT   INSERT COIN",    0, 13);
     showText("1             1 PLAYER START", 0, 14);
     showText("2             2 PLAYER START", 0, 15);
 
