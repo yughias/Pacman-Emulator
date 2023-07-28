@@ -1,11 +1,5 @@
 #include <hardware.h>
 
-void loadROM(const char* filename, size_t size, uint8_t* buffer){
-    FILE* fptr = fopen(filename, "rb");
-    fread(buffer, 1, size, fptr);
-    fclose(fptr);
-}
-
 void initAll(){
     initMemory();
     initVideoData();
@@ -26,11 +20,18 @@ void sendInterrupt(){
 
 void emulateHardware(){
     for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
+        if(AUX_INSTALLED && (AUX_BOARD & 0x1))
+            AUX_ENABLED = true;
         if(cpuCycles == 0)
             stepCPU();
         cpuCycles--;
     }
 
-    if(VBLANK_ENABLED)
+    if(VBLANK_ENABLED && INTERRUPT_ENABLED)
         sendInterrupt();
+}
+
+void reset(){
+    freeAll();
+    initAll();
 }

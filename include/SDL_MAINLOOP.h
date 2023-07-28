@@ -77,14 +77,20 @@ void playSound(Sound*);
 void freeSound(Sound*);
 #endif
 
-#ifdef MAINLOOP_GL
+// define MAINLOOP_GL variables and functions, if symbol does not exit function are transformed to empty macros
 typedef enum {NEAREST, LINEAR, ANISOTROPIC} ScaleMode;
+#ifdef MAINLOOP_GL
 typedef GLuint* Shader;
-
 Shader loadShader(const char*);
 void noGlobalShader();
 void setGlobalShader(Shader);
 void setScaleMode(ScaleMode);
+#else
+typedef int Shader;
+#define loadShader(x) 0;
+#define noGlobalShader();
+#define setGlobalShader(x);
+#define setScaleMode(x);
 #endif
 
 #endif

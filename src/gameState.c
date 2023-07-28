@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include "hardware.h"
-
+#include "romset.h"
 
 void saveState(){
-    FILE* fptr = fopen("data/savestate.bin", "wb");
+    char filename[64];
+    snprintf(filename, 63, "data/%s.state", romsetArray[currentRom]->name);
+    FILE* fptr = fopen(filename, "wb");
     
     // MEMORY DUMP
     fwrite(IO,                   1, IO_SIZE,  fptr);
@@ -28,6 +30,7 @@ void saveState(){
     fwrite(SPRITE_COORDS,        1, 16,       fptr);
     fwrite(&DIP_SWITCH_SETTINGS, 1, 1,        fptr);
     fwrite(&WATCHDOG_RESET,      1, 1,        fptr);
+    fwrite(&AUX_ENABLED,         1, 1,        fptr);
     
     // CPU dump
     fwrite(&HALTED,              1, 1,        fptr);
@@ -54,7 +57,9 @@ void saveState(){
 }
 
 void loadState(){
-    FILE* fptr = fopen("data/savestate.bin", "rb");
+    char filename[64];
+    snprintf(filename, 63, "data/%s.state", romsetArray[currentRom]->name);
+    FILE* fptr = fopen(filename, "rb");
     
     // MEMORY DUMP
     fread(IO,                   1, IO_SIZE,  fptr);
@@ -79,6 +84,7 @@ void loadState(){
     fread(SPRITE_COORDS,        1, 16,       fptr);
     fread(&DIP_SWITCH_SETTINGS, 1, 1,        fptr);
     fread(&WATCHDOG_RESET,      1, 1,        fptr);
+    fread(&AUX_ENABLED,         1, 1,        fptr);
 
     // CPU dump
     fread(&HALTED,              1, 1,        fptr);

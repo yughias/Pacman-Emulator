@@ -1,4 +1,5 @@
 #include "frontend.h"
+#include "romset.h"
 #include "gameState.h"
 #include "hardware.h"
 
@@ -33,7 +34,7 @@ const char ghost_names_descriptor[2][32] = {
     "normal ghost names"
 };
 
-char         message[32]      = "\0";
+char         message[33]      = "\0";
 uint64_t     remaining_frames = 0;
 
 bool         emulationStopped = false;
@@ -84,14 +85,6 @@ void updateHotKeys(const Uint8* keyState){
             }
             break;
 
-            case SDLK_F1:
-            soundMute = !soundMute;
-            if(soundMute)
-                setFrontendMessage("AUDIO MUTED");
-            else
-                setFrontendMessage("AUDIO UNMUTED");
-            break;
-
             case SDLK_RETURN:
                 if(keyState[SDL_SCANCODE_RALT])
                     fullScreen();
@@ -101,6 +94,14 @@ void updateHotKeys(const Uint8* keyState){
 
     if(isKeyPressed){
         switch(keyPressed){
+            case SDLK_F1:
+            soundMute = !soundMute;
+            if(soundMute)
+                setFrontendMessage("AUDIO MUTED");
+            else
+                setFrontendMessage("AUDIO UNMUTED");
+            break;
+
             case SDLK_F2:
             if(volumeMultiplier != 0)
                 volumeMultiplier--;
@@ -124,7 +125,7 @@ void updateHotKeys(const Uint8* keyState){
             break;
 
             case SDLK_F5:
-            initCPU();
+            reset();
             setFrontendMessage("RESET");
             break;
 
@@ -149,6 +150,12 @@ void updateHotKeys(const Uint8* keyState){
                 setFrontendMessage("CRT SHADER");
             }
             usingShader = !usingShader;
+            break;
+
+            case SDLK_F9:
+            currentRom = (currentRom + 1 ) % romsetArrayLength;
+            setFrontendMessage(romsetArray[currentRom]->name);
+            reset();
             break;
         }
     }
@@ -178,6 +185,6 @@ void updateFrontendMessage(){
 }
 
 void setFrontendMessage(const char* string){
-    strncpy(message, string, 31);
+    strncpy(message, string, 32);
     remaining_frames = MESSAGE_FRAME_TIME;
 }

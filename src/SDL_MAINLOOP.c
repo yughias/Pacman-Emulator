@@ -322,7 +322,7 @@ void fullScreen(){
 
     #ifndef MAINLOOP_GL
     SDL_GetWindowSize(window, &width, &height);
-    SDL_GetWindowSurface(window);
+    surface = SDL_GetWindowSurface(window);
     pixels = (int*)surface->pixels;
     #endif
 }

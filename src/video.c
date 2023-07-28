@@ -1,4 +1,5 @@
 #include <hardware.h>
+#include <romset.h>
 #include <SDL_MAINLOOP.h>
 
 uint8_t* colorROM;
@@ -22,14 +23,7 @@ uint8_t colorTable[8] = {
                         };
 
 void initVideoData(){
-    colorROM   = malloc(32);
-    paletteROM = malloc(256);
-    tileROM    = malloc(4096);
-    spriteROM  = malloc(4096);
-    loadROM("data/ROM/82s123.7f", 32,   colorROM);
-    loadROM("data/ROM/82s126.4a", 256,  paletteROM);
-    loadROM("data/ROM/pacman.5e", 4096, tileROM);
-    loadROM("data/ROM/pacman.5f", 4096, spriteROM);
+    romsetArray[currentRom]->initVideo();
 
     palettesInfo = getReadAddress(PALETTE_RAM);
     tilesInfo    = getReadAddress(TILE_RAM); 

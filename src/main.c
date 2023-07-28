@@ -1,5 +1,6 @@
 #include <frontend.h>
 #include <hardware.h>
+#include <romset.h>
 
 void setup(){
     size(224, 288);
@@ -8,16 +9,17 @@ void setup(){
     setScaleMode(NEAREST);
     crtShader = loadShader("data/shader/crt.glsl");
     frameRate(60);
+
     initAll();
     printInfo();
-    unpauseAudio();
     onExit = freeAll;
 }
 
 void loop(){
     if(!emulationStopped)
-        for(size_t i = 0; i < emulationSpeed; i++)
+        for(size_t i = 0; i < emulationSpeed; i++){
             emulateHardware();
+        }
 
     const Uint8* keyState = SDL_GetKeyboardState(NULL);
     updateInput(keyState);

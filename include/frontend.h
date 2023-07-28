@@ -12,7 +12,7 @@ extern const char bonus_score_descriptor[4][32];
 extern const char difficulty_descriptor[2][32];
 extern const char ghost_names_descriptor[2][32];
 
-extern char         message[32];
+extern char         message[33];
 extern uint64_t     remaining_frames;
 
 extern bool         emulationStopped;

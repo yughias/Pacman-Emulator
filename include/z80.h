@@ -1,7 +1,6 @@
 #ifndef _Z80_H_
 #define _Z80_H_
 
-
 #define HERTZ 3.072e6
 
 // flag masks to set/clear registers

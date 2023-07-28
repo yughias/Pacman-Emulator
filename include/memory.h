@@ -15,6 +15,12 @@ extern uint8_t IO[IO_SIZE];
 extern uint8_t* ROM;
 extern uint8_t* RAM;
 
+// AUX BORD
+extern uint8_t* AUX_ROM_LOW;
+extern uint8_t* AUX_ROM_HIGH;
+extern bool AUX_INSTALLED;
+extern bool AUX_ENABLED;
+
 // Memory Mapped Registers
 extern uint8_t IN0;
 extern uint8_t VBLANK_ENABLED;

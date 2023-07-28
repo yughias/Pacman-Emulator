@@ -1,4 +1,5 @@
 #include <hardware.h>
+#include <romset.h>
 #include <SDL_MAINLOOP.h>
 
 // I/0 SPACE
@@ -7,6 +8,12 @@ uint8_t IO[IO_SIZE];
 // MEMORY
 uint8_t* ROM;
 uint8_t* RAM;
+
+// AUX BOARD
+uint8_t* AUX_ROM_LOW;
+uint8_t* AUX_ROM_HIGH;
+bool AUX_INSTALLED;
+bool AUX_ENABLED;
 
 // Memory Mapped Registers
 uint8_t IN0;
@@ -32,15 +39,9 @@ uint8_t WATCHDOG_RESET;
 uint8_t NOT_MAPPED[2];
 
 void initMemory(){
-    ROM = malloc(sizeof(uint8_t)*ROM_SIZE);
-    RAM = malloc(sizeof(uint8_t)*RAM_SIZE);
-    memset(IO, 0, IO_SIZE);
+    romsetArray[currentRom]->initMemory();
 
-    loadROM("data/ROM/pacman.6e", 0x1000, ROM       );
-    loadROM("data/ROM/pacman.6f", 0x1000, ROM+0x1000);
-    loadROM("data/ROM/pacman.6h", 0x1000, ROM+0x2000);
-    loadROM("data/ROM/pacman.6j", 0x1000, ROM+0x3000);
-
+    AUX_ENABLED           = false;
     IN0                   = 0xFF;
     VBLANK_ENABLED        = 0x00;
     SOUND_ENABLED         = 0x00;
@@ -66,10 +67,20 @@ void initMemory(){
 void freeMemory(){
     free(ROM);
     free(RAM);
+    free(AUX_ROM_HIGH);
+    free(AUX_ROM_LOW);
 }
 
 uint8_t* getReadAddress(uint16_t address){
-    address &= 0x7fff;
+    if(AUX_INSTALLED && AUX_ENABLED){
+        if(address < ROM_SIZE)
+            return AUX_ROM_LOW + address;
+        if(address >= 0x8000 && address < 0x8800) // U5
+            return AUX_ROM_HIGH + (address - 0x8000);
+        if(address >= 0x8800){ // U6
+            return AUX_ROM_HIGH + ((address & 0xFFF) + 0x800);
+        }
+    }
 
     if(address < ROM_SIZE)
         return ROM + address;
@@ -96,8 +107,9 @@ uint8_t* getReadAddress(uint16_t address){
 uint8_t* getWriteAddress(uint16_t address){
     address &= 0x7fff;
 
-    if(address < ROM_SIZE)
-        printf("WRITE ON ROM ERROR! %X\n", *PC);
+    if(address < ROM_SIZE){
+        printf("WRITE ON ROM ERROR! %X\n", address);
+    }
 
     if(address < ROM_SIZE)
         return ROM + address;

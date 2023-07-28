@@ -14,5 +14,9 @@ void drawTile(int, int, int*);
 void drawSprite(int, int, uint8_t, uint8_t, bool, bool);
 void drawVideo();
 
+extern uint8_t* colorROM;
+extern uint8_t* paletteROM;
+extern uint8_t* tileROM;
+extern uint8_t* spriteROM;
 
 #endif

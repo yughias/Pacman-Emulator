@@ -1,5 +1,6 @@
 #include "hardware.h"
 #include "frontend.h"
+#include "romset.h"
 #include "SDL_MAINLOOP.h"
 
 uint8_t* AUDIO_ROM;
@@ -21,17 +22,15 @@ void initAudioData(){
 
     memset(VOICE_ACCUMULATOR, 0, sizeof(uint32_t)*3);
     AUDIO_ROM = malloc(sizeof(uint8_t)*AUDIO_ROM_SIZE);
-    loadROM("data/ROM/82s126.1m", 256, AUDIO_ROM);
-    loadROM("data/ROM/82s126.3m", 256, AUDIO_ROM+256);
+    loadROM("82s126.1m", 256, AUDIO_ROM);
+    loadROM("82s126.3m", 256, AUDIO_ROM+256);
+
+    SDL_PauseAudioDevice(audioDev, 0);
 }
 
 void freeAudioData(){
     free(AUDIO_ROM);
     SDL_CloseAudioDevice(audioDev);
-}
-
-void unpauseAudio(){
-    SDL_PauseAudioDevice(audioDev, 0);
 }
 
 uint16_t generateAudioSample(){
