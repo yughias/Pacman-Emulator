@@ -33,25 +33,25 @@ void saveState(){
     fwrite(&AUX_ENABLED,         1, 1,        fptr);
     
     // CPU dump
-    fwrite(&HALTED,              1, 1,        fptr);
-    fwrite(&INTERRUPT_ENABLED,   1, 1,        fptr);
-    fwrite(&INTERRUPT_PENDING,   1, 1,        fptr);
-    fwrite(&INTERRUPT_VECT,      2, 1,        fptr);
-    fwrite(AF,                   2, 1,        fptr);
-    fwrite(BC,                   2, 1,        fptr);
-    fwrite(DE,                   2, 1,        fptr);
-    fwrite(HL,                   2, 1,        fptr);
-    fwrite(AF_,                  2, 1,        fptr);
-    fwrite(BC_,                  2, 1,        fptr);
-    fwrite(DE_,                  2, 1,        fptr);
-    fwrite(HL_,                  2, 1,        fptr);
-    fwrite(IX,                   2, 1,        fptr);
-    fwrite(IY,                   2, 1,        fptr);
-    fwrite(I,                    1, 1,        fptr);
-    fwrite(R,                    1, 1,        fptr);
-    fwrite(SP,                   2, 1,        fptr);
-    fwrite(PC,                   2, 1,        fptr);
-    fwrite(&cpuCycles,           8, 1,        fptr);
+    fwrite(&cpu.HALTED,              1, 1,        fptr);
+    fwrite(&cpu.INTERRUPT_ENABLED,   1, 1,        fptr);
+    fwrite(&cpu.INTERRUPT_PENDING,   1, 1,        fptr);
+    fwrite(&cpu.INTERRUPT_VECT,      2, 1,        fptr);
+    fwrite(cpu.AF,                   2, 1,        fptr);
+    fwrite(cpu.BC,                   2, 1,        fptr);
+    fwrite(cpu.DE,                   2, 1,        fptr);
+    fwrite(cpu.HL,                   2, 1,        fptr);
+    fwrite(cpu.AF_,                  2, 1,        fptr);
+    fwrite(cpu.BC_,                  2, 1,        fptr);
+    fwrite(cpu.DE_,                  2, 1,        fptr);
+    fwrite(cpu.HL_,                  2, 1,        fptr);
+    fwrite(cpu.IX,                   2, 1,        fptr);
+    fwrite(cpu.IY,                   2, 1,        fptr);
+    fwrite(cpu.I,                    1, 1,        fptr);
+    fwrite(cpu.R,                    1, 1,        fptr);
+    fwrite(cpu.SP,                   2, 1,        fptr);
+    fwrite(cpu.PC,                   2, 1,        fptr);
+    fwrite(&cpu.cycles,              8, 1,        fptr);
 
     fclose(fptr);
 }
@@ -87,25 +87,25 @@ void loadState(){
     fread(&AUX_ENABLED,         1, 1,        fptr);
 
     // CPU dump
-    fread(&HALTED,              1, 1,        fptr);
-    fread(&INTERRUPT_ENABLED,   1, 1,        fptr);
-    fread(&INTERRUPT_PENDING,   1, 1,        fptr);
-    fread(&INTERRUPT_VECT,      2, 1,        fptr);
-    fread(AF,                   2, 1,        fptr);
-    fread(BC,                   2, 1,        fptr);
-    fread(DE,                   2, 1,        fptr);
-    fread(HL,                   2, 1,        fptr);
-    fread(AF_,                  2, 1,        fptr);
-    fread(BC_,                  2, 1,        fptr);
-    fread(DE_,                  2, 1,        fptr);
-    fread(HL_,                  2, 1,        fptr);
-    fread(IX,                   2, 1,        fptr);
-    fread(IY,                   2, 1,        fptr);
-    fread(I,                    1, 1,        fptr);
-    fread(R,                    1, 1,        fptr);
-    fread(SP,                   2, 1,        fptr);
-    fread(PC,                   2, 1,        fptr);
-    fread(&cpuCycles,           8, 1,        fptr);
+    fread(&cpu.HALTED,              1, 1,        fptr);
+    fread(&cpu.INTERRUPT_ENABLED,   1, 1,        fptr);
+    fread(&cpu.INTERRUPT_PENDING,   1, 1,        fptr);
+    fread(&cpu.INTERRUPT_VECT,      2, 1,        fptr);
+    fread(cpu.AF,                   2, 1,        fptr);
+    fread(cpu.BC,                   2, 1,        fptr);
+    fread(cpu.DE,                   2, 1,        fptr);
+    fread(cpu.HL,                   2, 1,        fptr);
+    fread(cpu.AF_,                  2, 1,        fptr);
+    fread(cpu.BC_,                  2, 1,        fptr);
+    fread(cpu.DE_,                  2, 1,        fptr);
+    fread(cpu.HL_,                  2, 1,        fptr);
+    fread(cpu.IX,                   2, 1,        fptr);
+    fread(cpu.IY,                   2, 1,        fptr);
+    fread(cpu.I,                    1, 1,        fptr);
+    fread(cpu.R,                    1, 1,        fptr);
+    fread(cpu.SP,                   2, 1,        fptr);
+    fread(cpu.PC,                   2, 1,        fptr);
+    fread(&cpu.cycles,          8, 1,        fptr);
 
     fclose(fptr);
 }

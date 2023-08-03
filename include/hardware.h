@@ -13,10 +13,14 @@
 #include "input.h"
 #include "audio.h"
 
+#define HERTZ 3.072e6
+
 void initAll();
 void freeAll();
 void emulateHardware();
 void sendInterrupt();
 void reset();
+
+extern z80_t cpu;
 
 #endif

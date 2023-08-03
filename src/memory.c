@@ -71,7 +71,7 @@ void freeMemory(){
     free(AUX_ROM_LOW);
 }
 
-uint8_t* getReadAddress(uint16_t address){
+uint8_t* getReadMemoryAddr(uint16_t address){
     if(AUX_INSTALLED && AUX_ENABLED){
         if(address < ROM_SIZE)
             return AUX_ROM_LOW + address;
@@ -104,7 +104,7 @@ uint8_t* getReadAddress(uint16_t address){
         return &DIP_SWITCH_SETTINGS;
 }
 
-uint8_t* getWriteAddress(uint16_t address){
+uint8_t* getWriteMemoryAddr(uint16_t address){
     address &= 0x7fff;
 
     if(address < ROM_SIZE){
@@ -151,4 +151,12 @@ uint8_t* getWriteAddress(uint16_t address){
         return &WATCHDOG_RESET;
     else
         return NOT_MAPPED;
+}
+
+uint8_t* getReadIOAddr(uint16_t ioaddr){
+    return IO;
+}
+
+uint8_t* getWriteIOAddr(uint16_t ioaddr){
+    return IO;
 }

@@ -1,10 +1,17 @@
 #include <hardware.h>
 
+z80_t cpu = {
+    .readMemory  = getReadMemoryAddr,
+    .writeMemory = getWriteMemoryAddr,
+    .readIO      = getReadIOAddr,
+    .writeIO     = getWriteIOAddr 
+};
+
 void initAll(){
     initMemory();
     initVideoData();
     initAudioData();
-    initCPU();
+    initCPU(&cpu);
 }
 
 void freeAll(){
@@ -14,20 +21,20 @@ void freeAll(){
 }
 
 void sendInterrupt(){
-    INTERRUPT_PENDING = true;
-    INTERRUPT_VECT = IO[0];
+    cpu.INTERRUPT_PENDING = true;
+    cpu.INTERRUPT_VECT = IO[0];
 }
 
 void emulateHardware(){
     for(size_t ticks = 0; ticks < HERTZ / 60; ticks++){
         if(AUX_INSTALLED && (AUX_BOARD & 0x1))
             AUX_ENABLED = true;
-        if(cpuCycles == 0)
-            stepCPU();
-        cpuCycles--;
+        if(cpu.cycles == 0)
+            stepCPU(&cpu);
+        cpu.cycles--;
     }
 
-    if(VBLANK_ENABLED && INTERRUPT_ENABLED)
+    if(VBLANK_ENABLED && cpu.INTERRUPT_ENABLED)
         sendInterrupt();
 }
 

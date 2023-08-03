@@ -47,7 +47,10 @@ extern uint8_t NOT_MAPPED[2];
 
 void initMemory();
 void freeMemory();
-uint8_t* getReadAddress(uint16_t);
-uint8_t* getWriteAddress(uint16_t);
+uint8_t* getReadMemoryAddr(uint16_t);
+uint8_t* getWriteMemoryAddr(uint16_t);
+uint8_t* getReadIOAddr(uint16_t);
+uint8_t* getWriteIOAddr(uint16_t);
+
 
 #endif

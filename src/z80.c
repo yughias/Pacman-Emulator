@@ -1,1894 +1,2077 @@
-#include <hardware.h>
+#include <z80.h>
+#include <stdio.h>
 
-// check if cpu is working
-bool     HALTED;
-bool     INTERRUPT_ENABLED;
-bool     INTERRUPT_PENDING;
-uint16_t INTERRUPT_VECT;
-
-// registers in 16 bit mode
-uint16_t AF[1];
-uint16_t BC[1];
-uint16_t DE[1];
-uint16_t HL[1];
-
-uint16_t AF_[1];
-uint16_t BC_[1];
-uint16_t DE_[1];
-uint16_t HL_[1];
-
-uint16_t IX[1];
-uint16_t IY[1];
-
-// 8 bit registers of IX and IY
-uint8_t* IXL;
-uint8_t* IXH;
-uint8_t* IYL;
-uint8_t* IYH;
-
-// registers in 8 bit mode
-uint8_t* A;
-uint8_t* F;
-uint8_t* B;
-uint8_t* C;
-uint8_t* D;
-uint8_t* E;
-uint8_t* H;
-uint8_t* L;
-
-uint8_t I[1];
-uint8_t R[1];
-
-// other 16 bit registers
-uint16_t SP[1];
-uint16_t PC[1];
-
-// cpuCycles
-uint64_t cpuCycles;
-
-typedef void (*rotateFunc)(uint8_t*);
-typedef void (*aluFunc)(uint8_t*, uint8_t);
+typedef void (*rotateFunc)(z80_t*, uint8_t*);
+typedef void (*aluFunc)(z80_t*, uint8_t*, uint8_t);
 typedef void (*blockFunc)();
 
-rotateFunc rot[8];
-aluFunc alu[8];
-blockFunc bli[16];
-uint16_t* rp[4];
-uint16_t* rp2[4];
-uint8_t* r[8];
+void useDDRegisterTable(z80_t*, uint8_t**, uint16_t**, uint16_t**);
+void useFDRegisterTable(z80_t*, uint8_t**, uint16_t**, uint16_t**);
+void restoreRegisterTable(z80_t*, uint8_t**, uint16_t**, uint16_t**);
+void adjustDDorFFOpcode(z80_t*, uint8_t**, uint16_t**, uint16_t**);
 
+//z80 NEW INSTRUCTION
+void NOP(z80_t*);
+void EX(z80_t*, uint16_t*, uint16_t*);
+void DJNZ(z80_t*, int8_t);
+void JR(z80_t*, int8_t);
+void JRNZ(z80_t*, int8_t);
+void JRZ(z80_t*, int8_t);
+void JRNC(z80_t*, int8_t);
+void JRC(z80_t*, int8_t);
+void LD_8(z80_t*, uint8_t*, uint8_t);
+void LD_16(z80_t*, uint16_t*, uint16_t);
+void ADD_16(z80_t*, uint16_t*, uint16_t*);
+void INC_16(z80_t*, uint16_t*);
+void DEC_16(z80_t*, uint16_t*);
+void INC_8(z80_t*, uint8_t*);
+void DEC_8(z80_t*, uint8_t*);
+void DAA(z80_t*);
+void CPL(z80_t*);
+void SCF(z80_t*);
+void CCF(z80_t*);
+void HLT(z80_t*);
+void RETNZ(z80_t*);
+void RETZ(z80_t*);
+void RETNC(z80_t*);
+void RETC(z80_t*);
+void RETPO(z80_t*);
+void RETPE(z80_t*);
+void RETP(z80_t*);
+void RETM(z80_t*);
+void POP(z80_t*, uint16_t*);
+void RET(z80_t*);
+void EXX(z80_t*);
+void JP(z80_t*, uint16_t);
+void JPNZ(z80_t*, uint16_t);
+void JPZ(z80_t*, uint16_t);
+void JPNC(z80_t*, uint16_t);
+void JPC(z80_t*, uint16_t);
+void JPPO(z80_t*, uint16_t);
+void JPPE(z80_t*, uint16_t);
+void JPP(z80_t*, uint16_t);
+void JPM(z80_t*, uint16_t);
+void OPCODE_OUT(z80_t*, uint8_t, uint16_t);
+void OPCODE_IN(z80_t*, uint8_t*, uint16_t);
+void EI(z80_t*);
+void DI(z80_t*);
+void CALL(z80_t*, uint16_t);
+void CALLNZ(z80_t*, uint16_t);
+void CALLZ(z80_t*, uint16_t);
+void CALLNC(z80_t*, uint16_t);
+void CALLC(z80_t*, uint16_t);
+void CALLPO(z80_t*, uint16_t);
+void CALLPE(z80_t*, uint16_t);
+void CALLP(z80_t*, uint16_t);
+void CALLM(z80_t*, uint16_t);
+void PUSH(z80_t*, uint16_t);
+void RST(z80_t*, uint8_t);
+void RLC(z80_t*, uint8_t*);
+void RRC(z80_t*, uint8_t*);
+void RLCA(z80_t*);
+void RRCA(z80_t*);
+void RLA(z80_t*);
+void RRA(z80_t*);
+void RLC(z80_t*, uint8_t*);
+void RRC(z80_t*, uint8_t*);
+void RL(z80_t*, uint8_t*);
+void RR(z80_t*, uint8_t*);
+void SLA(z80_t*, uint8_t*);
+void SRA(z80_t*, uint8_t*);
+void SLL(z80_t*, uint8_t*);
+void SRL(z80_t*, uint8_t*);
+void BIT(z80_t*, uint8_t, uint8_t*);
+void SET(z80_t*, uint8_t, uint8_t*);
+void RES(z80_t*, uint8_t, uint8_t*);
+void ADD(z80_t*, uint8_t*, uint8_t);
+void ADC(z80_t*, uint8_t*, uint8_t);
+void SUB(z80_t*, uint8_t*, uint8_t);
+void SBC(z80_t*, uint8_t*, uint8_t);
+void AND(z80_t*, uint8_t*, uint8_t);
+void XOR(z80_t*, uint8_t*, uint8_t);
+void OR(z80_t*, uint8_t*, uint8_t);
+void CP(z80_t*, uint8_t*, uint8_t);
+void ADC_16(z80_t*, uint16_t*, uint16_t);
+void SBC_16(z80_t*, uint16_t*, uint16_t);
+void NEG(z80_t*, uint8_t*);
+void RETI(z80_t*);
+void RETN(z80_t*);
+void IM(z80_t*, uint8_t);
+void RRD(z80_t*);
+void RLD(z80_t*);
+
+// block instruction
+void LDI(z80_t*);
+void LDD(z80_t*);
+void LDIR(z80_t*);
+void LDDR(z80_t*);
+void CPI(z80_t*);
+void CPD(z80_t*);
+void CPIR(z80_t*);
+void CPDR(z80_t*);
+void INI(z80_t*);
+void IND(z80_t*);
+void INIR(z80_t*);
+void INDR(z80_t*);
+void OUTI(z80_t*);
+void OUTD(z80_t*);
+void OTIR(z80_t*);
+void OTDR(z80_t*);
+
+// flag masks to set/clear registers
+#define SET_S   0b10000000
+#define SET_Z   0b01000000
+#define SET_Y   0b00100000
+#define SET_H   0b00010000
+#define SET_X   0b00001000
+#define SET_P   0b00000100
+#define SET_N   0b00000010
+#define SET_C   0b00000001
+
+#define CLEAR_S 0b01111111
+#define CLEAR_Z 0b10111111
+#define CLEAR_Y 0b11011111
+#define CLEAR_H 0b11101111
+#define CLEAR_X 0b11110111
+#define CLEAR_P 0b11111011
+#define CLEAR_N 0b11111101
+#define CLEAR_C 0b11111110
+
+#define SET_FLAG(f)          *z80->F |= SET_ ## f
+#define CLEAR_FLAG(f)        *z80->F &= CLEAR_ ## f
+#define CHANGE_FLAG(f, val)  *z80->F ^= (-!!(val) ^ *z80->F) & SET_ ## f
 
 // cpu utility function
-void setParity(uint8_t);
-void setZero(uint16_t);
-void setSign8Bit(uint8_t);
-void setSign16Bit(uint16_t);
+void setParity(z80_t*, uint8_t);
+void setZero(z80_t*, uint16_t);
+void setSign8Bit(z80_t*, uint8_t);
+void setSign16Bit(z80_t*, uint16_t);
 bool calculateCarry(int, uint16_t, uint16_t, bool);
 
-void initCPU(){
-    cpuCycles = 0;
-    F = (uint8_t*)AF;
-    A = F + 1;
-    C = (uint8_t*)BC;
-    B = C + 1;
-    E = (uint8_t*)DE;
-    D = E + 1;
-    L = (uint8_t*)HL;
-    H = L + 1;
+void initCPU(z80_t* z80){
+    z80->cycles += 0;
+    z80->F = (uint8_t*)z80->AF;
+    z80->A = z80->F + 1;
+    z80->C = (uint8_t*)z80->BC;
+    z80->B = z80->C + 1;
+    z80->E = (uint8_t*)z80->DE;
+    z80->D = z80->E + 1;
+    z80->L = (uint8_t*)z80->HL;
+    z80->H = z80->L + 1;
+    z80->IXL = (uint8_t*)z80->IX;
+    z80->IXH = z80->IXL + 1;
+    z80->IYL = (uint8_t*)z80->IY;
+    z80->IYH = z80->IYL + 1;
+ 
+    *z80->AF = 0xFFFF;
+    *z80->BC = 0;
+    *z80->DE = 0;
+    *z80->HL = 0;
+    *z80->SP = 0xFFFF;
+    *z80->PC = 0;
 
-    IXL = (uint8_t*)IX;
-    IXH = IXL + 1;
-
-    IYL = (uint8_t*)IY;
-    IYH = IYL + 1;
-    // WARNING: normally registers could have everything inside of it
-    // but for clarity, we assume they are empty
-    // set everything to 0
-    *AF = 0xFFFF;
-    *BC = 0;
-    *DE = 0;
-    *HL = 0;
-    *SP = 0xFFFF;
-    *PC = 0;
-
-    *AF_ = 0;
-    *BC_ = 0;
-    *DE_ = 0;
-    *HL_ = 0;
-    *I = 0;
-    *R = 0;
-    HALTED = false;
-    INTERRUPT_ENABLED = false;
-    INTERRUPT_PENDING = false;
-    INTERRUPT_VECT = 0x0000;
-
-    // set hash table for decoding
-    restoreRegisterTable();
-
-    rot[0] = RLC;
-    rot[1] = RRC;
-    rot[2] = RL;
-    rot[3] = RR;
-    rot[4] = SLA;
-    rot[5] = SRA;
-    rot[6] = SLL;
-    rot[7] = SRL;
-
-    alu[0] = ADD;
-    alu[1] = ADC;
-    alu[2] = SUB;
-    alu[3] = SBC;
-    alu[4] = AND;
-    alu[5] = XOR;
-    alu[6] = OR;
-    alu[7] = CP;
-
-    bli[0] = LDI;
-    bli[1] = LDD;
-    bli[2] = LDIR;
-    bli[3] = LDDR;
-    bli[4] = CPI;
-    bli[5] = CPD;
-    bli[6] = CPIR;
-    bli[7] = CPDR;
-    bli[8] = INI;
-    bli[9] = IND;
-    bli[10] = INIR;
-    bli[11] = INDR;
-    bli[12] = OUTI;
-    bli[13] = OUTD;
-    bli[14] = OTIR;
-    bli[15] = OTDR;
+    *z80->AF_ = 0;
+    *z80->BC_ = 0;
+    *z80->DE_ = 0;
+    *z80->HL_ = 0;
+    *z80->I = 0;
+    *z80->R = 0;
+    z80->HALTED = false;
+    z80->INTERRUPT_MODE    = 1;
+    z80->INTERRUPT_ENABLED = false;
+    z80->INTERRUPT_PENDING = false;
+    z80->INTERRUPT_VECT = 0x0000;
+    z80->cycles = 0;
 }
 
-void restoreRegisterTable(){
-    rp[0] = BC;
-    rp[1] = DE;
-    rp[2] = HL;
-    rp[3] = SP;
-
-    rp2[0] = BC;
-    rp2[1] = DE;
-    rp2[2] = HL;
-    rp2[3] = AF;
-
-    r[0] = B;
-    r[1] = C;
-    r[2] = D;
-    r[3] = E;
-    r[4] = H;
-    r[5] = L;
-    r[6] = (uint8_t*)(uintptr_t)*HL;
-    r[7] = A;
+void restoreRegisterTable(z80_t* z80, uint8_t** r, uint16_t** rp, uint16_t** rp2){
+    r[0] = z80->B;
+    r[1] = z80->C;
+    r[2] = z80->D;
+    r[3] = z80->E;
+    r[4] = z80->H;
+    r[5] = z80->L;
+    r[6] = (uint8_t*)(uintptr_t)*z80->HL;
+    r[7] = z80->A;
+    rp[0] = z80->BC;
+    rp[1] = z80->DE;
+    rp[2] = z80->HL;
+    rp[3] = z80->SP;
+    rp2[0] = z80->BC;
+    rp2[1] = z80->DE;
+    rp2[2] = z80->HL;
+    rp2[3] = z80->AF;
 }
 
-void useDDRegisterTable(){
-    rp[2] = IX;
-
-    rp2[2] = IX;
-
-    r[4] = IXH;
-    r[5] = IXL;
-    r[6] = (uint8_t*)(uintptr_t)(*IX+((int8_t)*getReadAddress(*PC+2)));
+void useDDRegisterTable(z80_t* z80, uint8_t** r, uint16_t** rp, uint16_t** rp2){
+    r[4] = z80->IXH;
+    r[5] = z80->IXL;
+    r[6] = (uint8_t*)(uintptr_t)( *z80->IX + (int8_t)*z80->readMemory(*z80->PC+2) );
+    rp[2] = z80->IX;
+    rp2[2] = z80->IX;
 }
 
-void useFDRegisterTable(){
-    rp[2] = IY;
-
-    rp2[2] = IY;
-
-    r[4] = IYH;
-    r[5] = IYL;
-    r[6] = (uint8_t*)(uintptr_t)(*IY+((int8_t)*getReadAddress(*PC+2)));
+void useFDRegisterTable(z80_t* z80, uint8_t** r, uint16_t** rp, uint16_t** rp2){
+    r[4] = z80->IYH;
+    r[5] = z80->IYL;
+    r[6] = (uint8_t*)(uintptr_t)( *z80->IY + (int8_t)*z80->readMemory(*z80->PC+2) );
+    rp[2] = z80->IY;
+    rp2[2] = z80->IY;
 }
 
-void adjustDDorFFOpcode(){
-    *PC += 1;
-    r[4] = H;
-    r[5] = L;
+void adjustDDorFFOpcode(z80_t* z80, uint8_t** r, uint16_t** rp, uint16_t** rp2){
+    *z80->PC += 1;
+    r[4] = z80->H;
+    r[5] = z80->L;
 }
 
-void infoCPU(){
-    fprintf(stderr, "%llu ", cpuCycles);
-    fprintf(stderr, "$%04X\t", *PC);
-    fprintf(stderr, "AF :0x%04X BC: 0x%04X ", *AF, *BC);
-    fprintf(stderr, "DE: 0x%04X HL: 0x%04X\n", *DE, *HL);
-    fprintf(stderr, "AF_ :0x%04X BC_: 0x%04X DE_: 0x%04X HL_: 0x%04X\n", *AF_, *BC_, *DE_, *HL_);
-    fprintf(stderr, "IX: 0x%04X IY: 0x%04X\n", *IX, *IY);
-    fprintf(stderr, "S: %d ", (bool)(*F & SET_S));
-    fprintf(stderr, "Z: %d ", (bool)(*F & SET_Z));
-    fprintf(stderr, "C: %d ", (bool)(*F & SET_C));
-    fprintf(stderr, "P: %d ", (bool)(*F & SET_P));
-    fprintf(stderr, "A: %d ", (bool)(*F & SET_H));
-    fprintf(stderr, "SP: 0x%04X\n", *SP);
-    fprintf(stderr, "Stack: 0x%04X\n", *(uint16_t*)getReadAddress(*SP));
-    fprintf(stderr, "OPCODE: 0x%02X %02X %02X", *getReadAddress(*PC), *getReadAddress(*PC+1), *getReadAddress(*PC+2));
+void infoCPU(z80_t* z80){
+    fprintf(stderr, "PC: %04X, AF: %04X, BC: %04X, DE: %04X, HL: %04X, SP: %04X, "
+         "IX: %04X, IY: %04X\n",
+      *z80->PC, *z80->AF, *z80->BC, *z80->DE, *z80->HL, *z80->SP, *z80->IX, *z80->IY);
+
+    fprintf(stderr, "S: %d ", (bool)(*z80->F & SET_S));
+    fprintf(stderr, "Z: %d ", (bool)(*z80->F & SET_Z));
+    fprintf(stderr, "C: %d ", (bool)(*z80->F & SET_C));
+    fprintf(stderr, "P: %d ", (bool)(*z80->F & SET_P));
+    fprintf(stderr, "A: %d\n", (bool)(*z80->F & SET_H));
+    fprintf(stderr, "OPCODE: 0x%02X %02X %02X\n", *z80->readMemory(*z80->PC), *z80->readMemory(*z80->PC+1), *z80->readMemory(*z80->PC+2));
+    fprintf(stderr, "cycles: %llu\n\n", z80->cycles);
+
+    /*
+    fprintf(stderr, "%llu ", z80->cycles);
+    fprintf(stderr, "$%04X\t", *z80->PC);
+    fprintf(stderr, "AF :0x%04X BC: 0x%04X ", *z80->AF, *z80->BC);
+    fprintf(stderr, "DE: 0x%04X HL: 0x%04X\n", *z80->DE, *z80->HL);
+    fprintf(stderr, "AF_ :0x%04X BC_: 0x%04X DE_: 0x%04X HL_: 0x%04X\n", *z80->AF_, *z80->BC_, *z80->DE_, *z80->HL_);
+    fprintf(stderr, "IX: 0x%04X IY: 0x%04X\n", *z80->IX, *z80->IY);
+    fprintf(stderr, "S: %d ", (bool)(*z80->F & SET_S));
+    fprintf(stderr, "Z: %d ", (bool)(*z80->F & SET_Z));
+    fprintf(stderr, "C: %d ", (bool)(*z80->F & SET_C));
+    fprintf(stderr, "P: %d ", (bool)(*z80->F & SET_P));
+    fprintf(stderr, "A: %d ", (bool)(*z80->F & SET_H));
+    fprintf(stderr, "SP: 0x%04X\n", *z80->SP);
+    fprintf(stderr, "Stack: 0x%04X\n", *(uint16_t*)z80->readMemory(*z80->SP));
+    fprintf(stderr, "OPCODE: 0x%02X %02X %02X", *z80->readMemory(*z80->PC), *z80->readMemory(*z80->PC+1), *z80->readMemory(*z80->PC+2));
     fprintf(stderr, "\n\n");
+    */
 }
 
-void processInterrupt(){
-    if(INTERRUPT_ENABLED && INTERRUPT_PENDING){
-            INTERRUPT_ENABLED = false;
-            INTERRUPT_PENDING = false;
-            HALTED = false;
-            uint16_t interruptAddress = *(uint16_t*)getReadAddress((*I << 8) | INTERRUPT_VECT);
-            CALL(interruptAddress);
-            cpuCycles = 19;
+void processInterrupt(z80_t* z80){
+    if(z80->INTERRUPT_ENABLED && z80->INTERRUPT_PENDING){
+            z80->INTERRUPT_ENABLED = false;
+            z80->INTERRUPT_PENDING = false;
+            z80->HALTED = false;
+        switch(z80->INTERRUPT_MODE){
+            case 1:
+            RST(z80, 0x07);
+            z80->cycles += 13;
+            break;
+            
+            case 2:
+            uint16_t interruptAddress = *(uint16_t*)z80->readMemory((*z80->I << 8) | z80->INTERRUPT_VECT);
+            CALL(z80, interruptAddress);
+            z80->cycles += 19;
+            break;
+        }
     }
 }
 
-void stepCPU(){
-    if(INTERRUPT_ENABLED && INTERRUPT_PENDING){
-        processInterrupt();
+void stepCPU(z80_t* z80){
+    if(z80->INTERRUPT_ENABLED && z80->INTERRUPT_PENDING){
+        processInterrupt(z80);
         return;
     }
 
-    if(HALTED){
-        cpuCycles = 1;
+    if(z80->HALTED){
+        z80->cycles += 1;
         return;
     }
         
     #ifdef DEBUG
-        infoCPU();
+        infoCPU(z80);
     #endif
-    uint8_t opcode = *getReadAddress(*PC);
+
+    const static rotateFunc rot[8]  = { RLC, RRC, RL,   RR,   SLA, SRA,   SLL,  SRL   };
+    const static aluFunc    alu[8]  = { ADD, ADC, SUB,  SBC,  AND,  XOR,  OR,   CP    };
+    const static blockFunc  bli[16] = { LDI, LDD, LDIR, LDDR, CPI,  CPD,  CPIR, CPDR,
+                                        INI, IND, INIR, INDR, OUTI, OUTD, OTIR, OTDR  };
+    const static uint8_t    im[8]   = {   0,   0,    1,    2,    0,    0,    1,    2  };
+
+    uint8_t* r[8];
+    uint16_t* rp[4];
+    uint16_t* rp2[4];
+
+    uint8_t opcode = *z80->readMemory(*z80->PC);
     uint8_t x;
     uint8_t y;
     uint8_t z;
     uint8_t q;
     uint8_t p;
+
+    uint8_t  val8;
+    uint16_t val16;
+    uint16_t nn;
+    uint16_t old_PC;
     bool prefixDD = false;
     bool prefixFD = false;
 
-    restoreRegisterTable();
-    if(opcode == 0xDD){
-        useDDRegisterTable();
-        prefixDD = true;
-        *PC += 1;
-    } else if(opcode == 0XFD){
-        useFDRegisterTable();
-        prefixFD = true;
-        *PC += 1;
+    restoreRegisterTable(z80, r, rp, rp2);
+    switch(opcode){
+        case 0xDD:
+        case 0xFD:
+        switch(opcode){
+            case 0xDD:
+            useDDRegisterTable(z80, r, rp, rp2);
+            prefixDD = true;
+            break;
+
+            case 0xFD:
+            useFDRegisterTable(z80, r, rp, rp2);
+            prefixFD = true;
+            break;
+        }
+        *z80->PC += 1;
+        break;
     }
 
-    opcode = *getReadAddress(*PC);
+    opcode = *z80->readMemory(*z80->PC);
 
-    if(opcode == 0xCB){
+    switch(opcode){
+        case 0XCB:
         if(prefixDD || prefixFD)
-            *PC += 1;
+            *z80->PC += 1;
 
-        *PC += 1;
-        opcode = *getReadAddress(*PC);
+        *z80->PC += 1;
+        opcode = *z80->readMemory(*z80->PC);
         x = opcode >> 6;
         y = (opcode >> 3) & 0b111;
         z = opcode & 0b111;
         q = y & 0b1;
         p = (y >> 1) & 0b11;
 
-        *PC += 1;
+        *z80->PC += 1;
+        uint8_t memptr = (uint8_t)(uintptr_t)r[6];
         if(z == 6){
             if(x == 1)
-                r[z] = getReadAddress((uintptr_t)r[z]);
+                r[z] = z80->readMemory((uintptr_t)r[z]);
             else
-                r[z] = getWriteAddress((uintptr_t)r[z]);
+                r[z] = z80->writeMemory((uintptr_t)r[z]);
         }
-        if(x == 0){
+        switch(x){
+            case 0:
             rotateFunc function = rot[y];
-            uint8_t* operand;
-            operand = r[z];
-            (*function)(operand);
-        }
-        if(x == 1){
-            BIT(y, r[z]);    
-        }
-        if(x == 2){
-            RES(y, r[z]);
-        }
-        if(x == 3){
-            SET(y, r[z]);
-        }
-        if(z == 6 && (prefixDD || prefixFD))
-            cpuCycles = 23;
-        else if(z == 6 && !prefixDD && !prefixDD)
-            cpuCycles = 15;
-        else
-            cpuCycles = 8;
-    } else if(opcode == 0xED){
-        // ED OPCODE TABLE
-        *PC = *PC + 1;
-        opcode = *getReadAddress(*PC);
-        x = opcode >> 6;
-        y = (opcode >> 3) & 0b111;
-        z = opcode & 0b111;
-        q = y & 0b1;
-        p = (y >> 1) & 0b11;
+            (*function)(z80, r[z]);
+            break;
 
-        if(x == 0 || x == 3){
-            *PC += 1;
-            NOP();
-        }
-        if(x == 1){
-            if(z == 0){
-                *PC += 1;
-                if(y != 6){
-                    OPCODE_IN(r[y], IO[*C]);
-                    setSign8Bit(*(r[y]));
-                    setParity(*(r[y]));
-                    setSign8Bit(*r[y]);
-                } else {
-                    uint8_t copy = *A;
-                    OPCODE_IN(A, IO[*C]);
-                    setSign8Bit(*A);
-                    setParity(*A);
-                    setSign8Bit(*A);
-                    *A = copy;
-                }
-                cpuCycles = 12;
-            }
-            if(z == 1){
-                *PC += 1;
-                if(y != 6){
-                    OPCODE_OUT(IO+*C, *(r[y]));
-                    setSign8Bit(*(r[y]));
-                    setParity(*(r[y]));
-                    setSign8Bit(*(r[y]));
-                } else {
-                    OPCODE_OUT(IO+*C, 0);
-                    setSign8Bit(*A);
-                    setParity(*A);
-                    setSign8Bit(*A);
-                }
-                cpuCycles = 12;
-            }
-            if(z == 2){
-                *PC += 1;
-                if(q == 0){
-                    SBC_16(HL, *(rp[p]));
-                }
-                if(q == 1){
-                    ADC_16(HL, *(rp[p]));
-                }
-                cpuCycles = 15;
-            }
-            if(z == 3){
-                uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
-                *PC += 3;
-                if(q == 0){
-                    LD_16((uint16_t*)getWriteAddress(nn), *(rp[p]));
-                }
-                if(q == 1){
-                    LD_16(rp[p], *(uint16_t*)getReadAddress(nn));
-                }
-                 if(rp[p] == HL)
-                        cpuCycles = 16;
-                    else
-                        cpuCycles = 20;
-            }
-            if(z == 4){
-                *PC += 1;
-                NEG(A);
-                cpuCycles = 8;
-            }
-            if(z == 5){
-                *PC += 1;
-                if(y != 1){
-                    RETN();
-                }
-                if(y == 1){
-                    RETI();
-                }
-                cpuCycles = 14;
-            }
+            case 1:
+            BIT(z80, y, r[z]);
+            // XY FLAGS SPECIAL BEHAVIOUR IF (HL) OR (IX+d) OR (IY+d) IS PARAMETER ON BIT INSTRUCTION
             if(z == 6){
-                *PC += 1;
-                IM();
-                cpuCycles = 8;
-            }
-            if(z == 7){
-                *PC += 1;
-                if(y == 0){
-                    LD_8(I, *A);
-                    cpuCycles = 9;
-                }
-                if(y == 1){
-                    LD_8(R, *A);
-                    cpuCycles = 9;
-                }
-                if(y == 2){
-                    LD_8(A, *I);
-                    cpuCycles = 9;
-                }
-                if(y == 3){
-                    LD_8(A, *R);
-                    cpuCycles = 9;
-                }
-                if(y == 4){
-                    RRD();
-                    cpuCycles = 18;
-                }
-                if(y == 5){
-                    RLD();
-                    cpuCycles = 18;
-                }
-                if(y == 6){
-                    NOP();
-                }
-                if(y == 7){
-                    NOP();
-                }
-            }
+                if(memptr & 0b100000)
+                    *z80->F |= SET_Y;
+                else 
+                    *z80->F &= CLEAR_Y; 
+
+                if(memptr & 0b1000)
+                    *z80->F |= SET_X;
+                else 
+                    *z80->F &= CLEAR_X;
+            } 
+            break;
+
+            case 2:
+            RES(z80, y, r[z]);
+            break;
+
+            case 3:
+            SET(z80, y, r[z]);
+            break;
         }
-        if(x == 2){
-            *PC += 1;
-            if(z <= 3 && y >= 4){
-                blockFunc function = bli[(y-4)+z*4];
-                (*function)();
-            }
-        }
-    } else {
-        // NORMAL OPCODE TABLE
-        opcode = *getReadAddress(*PC);
+        // BIT INSTRUCTIONS LAST A LITTLE LESS
+        if(z == 6 && (prefixDD || prefixFD)){
+            if(x == 1)
+                z80->cycles += 20;
+            else
+                z80->cycles += 23;
+        } else if(z == 6 && !prefixDD && !prefixDD){
+            if(x == 1)
+                z80->cycles += 12;
+            else
+                z80->cycles += 15;
+        } else
+            z80->cycles += 8;
+        break;
+
+        case 0XED:
+        *z80->PC = *z80->PC + 1;
+        opcode = *z80->readMemory(*z80->PC);
         x = opcode >> 6;
         y = (opcode >> 3) & 0b111;
         z = opcode & 0b111;
         q = y & 0b1;
         p = (y >> 1) & 0b11;
 
-        if(x == 0){
-            if(z == 0){
-                if(y == 0){
-                    *PC += 1;
-                    NOP();
+        switch(x){
+            case 0:
+            case 3:
+            *z80->PC += 1;
+            NOP(z80);
+            break;
+
+            case 1:
+            switch(z){
+                case 0:
+                *z80->PC += 1;
+                if(y != 6){
+                    OPCODE_IN(z80, r[y], *z80->BC);
+                    setSign8Bit(z80, *r[y]);
+                    setParity(z80, *r[y]);
+                    setSign8Bit(z80, *r[y]);
+                } else {
+                    uint8_t copy = *z80->A;
+                    OPCODE_IN(z80, z80->A, *z80->BC);
+                    setSign8Bit(z80, *z80->A);
+                    setParity(z80, *z80->A);
+                    setSign8Bit(z80, *z80->A);
+                    *z80->A = copy;
                 }
-                if(y == 1){
-                    *PC += 1;
-                    EX(AF, AF_);
-                    cpuCycles = 4;
+                z80->cycles += 12;
+                break;
+
+                case 1:
+                *z80->PC += 1;
+                if(y != 6){
+                    OPCODE_OUT(z80, *r[y], *z80->BC);
+                    setSign8Bit(z80, *r[y]);
+                    setParity(z80, *r[y]);
+                    setSign8Bit(z80, *r[y]);
+                } else {
+                    OPCODE_OUT(z80, 0, *z80->BC);
+                    setSign8Bit(z80, *z80->A);
+                    setParity(z80, *z80->A);
+                    setSign8Bit(z80, *z80->A);
                 }
-                if(y == 2){
-                    *PC += 2;
-                    DJNZ(*getReadAddress(*PC-1));
-                }   
-                if(y == 3){
-                    *PC += 2;
-                    JR(*getReadAddress(*PC-1));
-                    cpuCycles = 12;
+                z80->cycles += 12;
+                break;
+
+                case 2:
+                *z80->PC += 1;
+                if(q == 0)
+                    SBC_16(z80, z80->HL, *rp[p]);
+                else
+                    ADC_16(z80, z80->HL, *rp[p]);
+                z80->cycles += 15;
+                break;
+
+                case 3:
+                nn = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                *z80->PC += 3;
+                if(q == 0)
+                    LD_16(z80, (uint16_t*)z80->writeMemory(nn), *rp[p]);
+                else 
+                    LD_16(z80, rp[p], *(uint16_t*)z80->readMemory(nn));
+                if(rp[p] == z80->HL)
+                    z80->cycles += 16;
+                else
+                    z80->cycles += 20;
+                break;
+
+                case 4:
+                *z80->PC += 1;
+                NEG(z80, z80->A);
+                z80->cycles += 8;
+                break;
+
+                case 5:
+                *z80->PC += 1;
+                if(y != 1)
+                    RETN(z80);
+                else
+                    RETI(z80);
+                z80->cycles += 14;
+                break;
+
+                case 6:
+                *z80->PC += 1;
+                IM(z80, im[y]);
+                z80->cycles += 8;
+                break;
+
+                case 7:
+                *z80->PC += 1;
+                switch(y){
+                    case 0:
+                    LD_8(z80, z80->I, *z80->A);
+                    z80->cycles += 9;
+                    break;
+
+                    case 1:
+                    LD_8(z80, z80->R, *z80->A);
+                    z80->cycles += 9;
+                    break;
+
+                    case 2:
+                    LD_8(z80, z80->A, *z80->I);
+                    z80->cycles += 9;
+                    break;
+
+                    case 3:
+                    LD_8(z80, z80->A, *z80->R);
+                    z80->cycles += 9;
+                    break;
+
+                    case 4:
+                    RRD(z80);
+                    z80->cycles += 18;
+                    break;
+
+                    case 5:
+                    RLD(z80);
+                    z80->cycles += 18;
+                    break;
+
+                    case 6:
+                    NOP(z80);
+                    break;
+
+                    case 7:
+                    NOP(z80);
+                    break;
                 }
-                if(y == 4){
-                    *PC += 2;
-                    uint16_t old_PC = *PC;
-                    JRNZ(*getReadAddress(*PC-1));
-                    if(old_PC == *PC)
-                        cpuCycles = 12;
-                    else
-                        cpuCycles = 7;
-                }
-                if(y == 5){
-                    *PC += 2;
-                    uint16_t old_PC = *PC;
-                    JRZ(*getReadAddress(*PC-1));
-                    if(old_PC == *PC)
-                        cpuCycles = 12;
-                    else
-                        cpuCycles = 7;
-                }
-                if(y == 6){
-                    *PC += 2;
-                    uint16_t old_PC = *PC;
-                    JRNC(*getReadAddress(*PC-1));
-                    if(old_PC == *PC)
-                        cpuCycles = 12;
-                    else
-                        cpuCycles = 7;
-                }
-                if(y == 7){
-                    *PC += 2;
-                    uint16_t old_PC = *PC;
-                    JRC(*getReadAddress(*PC-1));
-                    if(old_PC == *PC)
-                        cpuCycles = 12;
-                    else
-                        cpuCycles = 7;
-                }
+                break;
             }
-            if(z == 1){
-                if(q == 0){
-                    uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
-                    *PC += 3;
-                    LD_16(rp[p], nn);
-                    if(rp[p] == IX || rp[p] == IY)
-                        cpuCycles = 14;
+            break;
+
+            case 2:
+            *z80->PC += 1;
+            blockFunc function = bli[(y-4)+z*4];
+            (*function)(z80);
+            break;
+        }
+        break;
+
+        default:
+        x = opcode >> 6;
+        y = (opcode >> 3) & 0b111;
+        z = opcode & 0b111;
+        q = y & 0b1;
+        p = (y >> 1) & 0b11;
+
+        switch(x){
+            case 0:
+            switch(z){
+                case 0:
+                switch(y){
+                    case 0:
+                    *z80->PC += 1;
+                    NOP(z80);
+                    break;
+
+                    case 1:
+                    *z80->PC += 1;
+                    EX(z80, z80->AF, z80->AF_);
+                    z80->cycles += 4;
+                    break;
+
+                    case 2:
+                    *z80->PC += 2;
+                    DJNZ(z80, *z80->readMemory(*z80->PC-1));
+                    break;
+
+                    case 3:
+                    *z80->PC += 2;
+                    JR(z80, *z80->readMemory(*z80->PC-1));
+                    z80->cycles += 12;
+                    break;
+
+                    case 4:
+                    *z80->PC += 2;
+                    old_PC = *z80->PC;
+                    JRNZ(z80, *z80->readMemory(*z80->PC-1));
+                    if(old_PC == *z80->PC)
+                        z80->cycles += 7;
                     else
-                        cpuCycles = 10;
-                }
-                if(q == 1){
-                    *PC += 1;
-                    ADD_16(rp[2], rp[p]);
-                    if(rp[2] == HL)
-                        cpuCycles = 11;
+                        z80->cycles += 12;
+                    break;
+
+                    case 5:
+                    *z80->PC += 2;
+                    old_PC = *z80->PC;
+                    JRZ(z80, *z80->readMemory(*z80->PC-1));
+                    if(old_PC == *z80->PC)
+                        z80->cycles += 7;
                     else
-                        cpuCycles = 15;
+                        z80->cycles += 12;
+                    break;
+
+                    case 6:
+                    *z80->PC += 2;
+                    old_PC = *z80->PC;
+                    JRNC(z80, *z80->readMemory(*z80->PC-1));
+                    if(old_PC == *z80->PC)
+                        z80->cycles += 7;
+                    else
+                        z80->cycles += 12;
+                    break;
+
+                    case 7:
+                    *z80->PC += 2;
+                    old_PC = *z80->PC;
+                    JRC(z80, *z80->readMemory(*z80->PC-1));
+                    if(old_PC == *z80->PC)
+                        z80->cycles += 7;
+                    else
+                        z80->cycles += 12;
+                    break;
                 }
-            }
-            if(z == 2){
-                if(q == 0){
-                    if(p == 0){
-                        *PC += 1;
-                        LD_8(getWriteAddress(*BC), *A);
-                        cpuCycles = 7;
-                    }
-                    if(p == 1){
-                        *PC += 1;
-                        LD_8(getWriteAddress(*DE), *A);
-                        cpuCycles = 7;
-                    }
-                    if(p == 2){
-                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
-                        *PC += 3;
-                        LD_16((uint16_t*)getWriteAddress(nn), *(rp[2]));
-                        if(rp[2] == HL)
-                            cpuCycles = 16;
+                break;
+
+                case 1:
+                switch(q){
+                    case 0:
+                    nn = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                    *z80->PC += 3;
+                    LD_16(z80, rp[p], nn);
+                    if(rp[p] == z80->IX || rp[p] == z80->IY)
+                        z80->cycles += 14;
+                    else
+                        z80->cycles += 10;
+                    break;
+
+                    case 1:
+                    *z80->PC += 1;
+                    ADD_16(z80, rp[2], rp[p]);
+                    if(rp[2] == z80->HL)
+                        z80->cycles += 11;
+                    else 
+                        z80->cycles += 15;
+                    break;
+                }
+                break;
+
+                case 2:
+                switch(q){
+                    case 0:
+                    switch(p){
+                        case 0:
+                        *z80->PC += 1;
+                        LD_8(z80, z80->writeMemory(*z80->BC), *z80->A);
+                        z80->cycles += 7;
+                        break;
+
+                        case 1:
+                        *z80->PC += 1;
+                        LD_8(z80, z80->writeMemory(*z80->DE), *z80->A);
+                        z80->cycles += 7;
+                        break;
+
+                        case 2:
+                        nn = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                        *z80->PC += 3;
+                        LD_16(z80, (uint16_t*)z80->writeMemory(nn), *rp[2]);
+                        if(rp[2] == z80->HL)
+                            z80->cycles += 16;
                         else
-                            cpuCycles = 20;
+                            z80->cycles += 20;
+                        break;
+
+                        case 3:
+                        nn = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                        *z80->PC += 3;
+                        LD_8(z80, (uint8_t*)z80->writeMemory(nn), *z80->A);
+                        z80->cycles += 13;
+                        break;
                     }
-                    if(p == 3){
-                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
-                        *PC += 3;
-                        LD_8((uint8_t*)getWriteAddress(nn), *A);
-                        cpuCycles = 16;
+                    break;
+
+                    case 1:
+                    switch(p){
+                        case 0:
+                        *z80->PC += 1;
+                        LD_8(z80, z80->A, *z80->readMemory(*z80->BC));
+                        z80->cycles += 7;
+                        break;
+
+                        case 1:
+                        *z80->PC += 1;
+                        LD_8(z80, z80->A, *z80->readMemory(*z80->DE));
+                        z80->cycles += 7;
+                        break;
+
+                        case 2:
+                        nn = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                        val16 = *(uint16_t*)z80->readMemory(nn);
+                        *z80->PC += 3;
+                        LD_16(z80, rp[2], val16);
+                        if(rp[2] == z80->HL)
+                            z80->cycles += 16;
+                        else
+                            z80->cycles += 20;
+                        break;
+
+                        case 3:
+                        nn = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                        val8 = *z80->readMemory(nn);
+                        *z80->PC += 3;
+                        LD_8(z80, z80->A, val8);
+                        z80->cycles += 13;
+                        break;
                     }
+                    break;
                 }
-                if(q == 1){
-                    if(p == 0){
-                        *PC += 1;
-                        LD_8(A, *getReadAddress(*BC));
-                        cpuCycles = 7;
-                    }
-                    if(p == 1){
-                        *PC += 1;
-                        LD_8(A, *getReadAddress(*DE));
-                        cpuCycles = 7;
-                    }
-                    if(p == 2){
-                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
-                        uint16_t val = *(uint16_t*)getReadAddress(nn);
-                        *PC += 3;
-                        LD_16(rp[2], val);
-                        cpuCycles = 16;
-                    }
-                    if(p == 3){
-                        uint16_t nn = *(uint16_t*)getReadAddress(*PC+1);
-                        uint8_t val = *getReadAddress(nn);
-                        *PC += 3;
-                        LD_8(A, val);
-                        cpuCycles = 7;
-                    }
+                break;
+
+                case 3:
+                switch(q){
+                    case 0:
+                    *z80->PC += 1;
+                    INC_16(z80, rp[p]);
+                    break;
+
+                    case 1:
+                    *z80->PC += 1;
+                    DEC_16(z80, rp[p]);
+                    break;
                 }
-            }
-            if(z == 3){
-                if(q == 0){
-                    *PC += 1;
-                    INC_16(rp[p]);
-                }
-                if(q == 1){
-                    *PC += 1;
-                    DEC_16(rp[p]);
-                }
-                if(p == 2 && rp[p] != HL)
-                    cpuCycles = 10;
+                if(p == 2 && rp[p] != z80->HL)
+                    z80->cycles += 10;
                 else
-                    cpuCycles = 6;
-            }
-            if(z == 4){
-                *PC += 1;
+                    z80->cycles += 6;
+                break;
+
+                case 4:
+                *z80->PC += 1;
                 if(y == 6 && (prefixDD || prefixFD)){
-                    *PC += 1;
-                    cpuCycles = 23;
+                    *z80->PC += 1;
+                    z80->cycles += 23;
                 } else if(y == 6 && !prefixDD && !prefixFD)
-                    cpuCycles = 11;
-                else
-                    cpuCycles = 4;
+                    z80->cycles += 11;
+                else if((prefixDD || prefixFD) && (y == 4 || y == 5))
+                    z80->cycles += 8;
+                else 
+                    z80->cycles += 4;
                 if(y == 6)
-                    r[y] = getWriteAddress((uintptr_t)r[y]);
-                INC_8(r[y]);
-            }
-            if(z == 5){
-                *PC += 1;
+                    r[y] = z80->writeMemory((uintptr_t)r[y]);
+                INC_8(z80, r[y]);
+                break;
+
+                case 5:
+                *z80->PC += 1;
                 if(y == 6 && (prefixDD || prefixFD)){
-                    *PC += 1;
-                    cpuCycles = 23;
+                    *z80->PC += 1;
+                    z80->cycles += 23;
                 } else if(y == 6 && !prefixDD && !prefixFD)
-                    cpuCycles = 11;
-                else
-                    cpuCycles = 4;
+                    z80->cycles += 11;
+                else if((prefixDD || prefixFD) && (y == 4 || y == 5))
+                    z80->cycles += 8;
+                else 
+                    z80->cycles += 4;
                 if(y == 6)
-                    r[y] = getWriteAddress((uintptr_t)r[y]);
-                DEC_8(r[y]);
-            }
-            if(z == 6){
+                    r[y] = z80->writeMemory((uintptr_t)r[y]);
+                DEC_8(z80, r[y]);
+                break;
+
+                case 6:
                 if(y == 6 && (prefixDD || prefixFD)){
-                    adjustDDorFFOpcode();
-                    cpuCycles = 19;
-                } else if(y == 6 && !prefixDD && !prefixFD)
-                    cpuCycles = 10;
+                    adjustDDorFFOpcode(z80, r, rp, rp2);
+                    z80->cycles += 19;
+                } else if((prefixDD || prefixFD) && (y == 4 || y == 5))
+                    z80->cycles += 11;
+                else if(y == 6 && !prefixDD && !prefixFD)
+                    z80->cycles += 10;
                 else
-                    cpuCycles = 7;
+                    z80->cycles += 7;
                 if(y == 6)
-                    r[y] = getWriteAddress((uintptr_t)r[y]);
-                uint8_t val = *getReadAddress(*PC+1);
-                *PC += 2;
-                LD_8(r[y], val);
+                    r[y] = z80->writeMemory((uintptr_t)r[y]);
+                val8 = *z80->readMemory(*z80->PC+1);
+                *z80->PC += 2;
+                LD_8(z80, r[y], val8);
+                break;
+
+                case 7:
+                *z80->PC += 1;
+                switch(y){
+                    case 0:
+                    RLCA(z80);
+                    break;
+
+                    case 1:
+                    RRCA(z80);
+                    break;
+
+                    case 2:
+                    RLA(z80);
+                    break;
+
+                    case 3:
+                    RRA(z80);
+                    break;
+
+                    case 4:
+                    DAA(z80);
+                    break;
+                    
+                    case 5:
+                    CPL(z80);
+                    break;
+
+                    case 6:
+                    SCF(z80);
+                    break;
+
+                    case 7:
+                    CCF(z80);
+                    break;
+                }
+                z80->cycles += 4;
+                break;
             }
-            if(z == 7){
-                *PC += 1;
-                if(y == 0){
-                    RLCA();
-                }
-                if(y == 1){
-                    RRCA();
-                }
-                if(y == 2){
-                    RLA();
-                }
-                if(y == 3){
-                    RRA();
-                }
-                if(y == 4){
-                    DAA();
-                }
-                if(y == 5){
-                    CPL();
-                }
-                if(y == 6){
-                    SCF();
-                }
-                if(y == 7){
-                    CCF();
-                }
-                cpuCycles = 4;
-            }
-        }
-        if(x == 1){
-            *PC += 1;
+            break;
+
+            case 1:
+            *z80->PC += 1;
             if(z == 6 && y == 6){
-                HLT();
-                cpuCycles = 4;
+                HLT(z80);
+                z80->cycles += 4;
             } else {
                 if((z == 6 || y == 6) && (prefixDD || prefixFD)){
-                    adjustDDorFFOpcode();
-                    cpuCycles = 19;
-                } else if((z == 6 || y == 6) && !prefixDD && !prefixFD)
-                    cpuCycles = 7;
+                    adjustDDorFFOpcode(z80, r, rp, rp2);
+                    z80->cycles += 19;
+                } else if(prefixDD || prefixFD)
+                    z80->cycles += 8; 
+                else if((z == 6 || y == 6) && !prefixDD && !prefixFD)
+                    z80->cycles += 7;
                 else
-                    cpuCycles = 4;
+                    z80->cycles += 4;
                 if(y == 6)
-                    r[y] = getWriteAddress((uintptr_t)r[y]);
+                    r[y] = z80->writeMemory((uintptr_t)r[y]);
                 if(z == 6)
-                    r[z] = getReadAddress((uintptr_t)r[z]);
-                LD_8(r[y], *(r[z]));
+                    r[z] = z80->readMemory((uintptr_t)r[z]);
+                LD_8(z80, r[y], *r[z]);
             }
-        }
-        if(x == 2){
+            break;
+
+            case 2:
             if((prefixDD || prefixFD) && z == 6){
-                *PC += 1;
-                r[z] = getReadAddress((uintptr_t)r[z]);
-                cpuCycles = 19;
+                *z80->PC += 1;
+                r[z] = z80->readMemory((uintptr_t)r[z]);
+                z80->cycles += 19;
             } else if(!prefixDD && !prefixFD && z == 6){
-                r[z] = getReadAddress((uintptr_t)r[z]);
-                cpuCycles = 7;
-            } else
-                cpuCycles = 4;
+                r[z] = z80->readMemory((uintptr_t)r[z]);
+                z80->cycles += 7;
+            } else if((prefixDD || prefixFD) && (z == 4 || z == 5))
+                z80->cycles += 8;
+            else
+                z80->cycles += 4;
             aluFunc function = alu[y];
-            *PC += 1;
-            (*function)(A, *(r[z]));
-        }
-        if(x == 3){
-            if(z == 0){
-                *PC += 1;
-                uint16_t old_PC = *PC;
-                if(y == 0){
-                    RETNZ();
+            *z80->PC += 1;
+            (*function)(z80, z80->A, *r[z]);
+            break;
+
+            case 3:
+            switch(z){
+                case 0:
+                *z80->PC += 1;
+                old_PC = *z80->PC;
+                switch(y){
+                    case 0:
+                    RETNZ(z80);
+                    break;
+
+                    case 1:
+                    RETZ(z80);
+                    break;
+
+                    case 2:
+                    RETNC(z80);
+                    break;
+
+                    case 3:
+                    RETC(z80);
+                    break;
+
+                    case 4:
+                    RETPO(z80);
+                    break;
+
+                    case 5:
+                    RETPE(z80);
+                    break;
+
+                    case 6:
+                    RETP(z80);
+                    break;
+
+                    case 7:
+                    RETM(z80);
+                    break;
                 }
-                if(y == 1){
-                    RETZ();
-                }
-                if(y == 2){
-                    RETNC();
-                }
-                if(y == 3){
-                    RETC();
-                }
-                if(y == 4){
-                    RETPO();
-                }
-                if(y == 5){
-                    RETPE();
-                }
-                if(y == 6){
-                    RETP();
-                }
-                if(y == 7){
-                    RETM();
-                }
-                if(old_PC == *PC)
-                    cpuCycles = 5;
+                if(old_PC == *z80->PC)
+                    z80->cycles += 5;
                 else
-                    cpuCycles = 11;
-            }
-            if(z == 1){
-                *PC += 1;
-                if(q == 0){
-                    POP(rp2[p]);
-                    if(rp2[p] == IX || rp2[p] == IY)
-                        cpuCycles = 14;
+                    z80->cycles += 11;
+                break;
+
+                case 1:
+                *z80->PC += 1;
+                switch(q){
+                    case 0:
+                    POP(z80, rp2[p]);
+                    if(rp2[p] == z80->IX || rp2[p] == z80->IY)
+                        z80->cycles += 14;
                     else
-                        cpuCycles = 10;
-                }
-                if(q == 1){
-                    if(p == 0){
-                        RET();
-                        cpuCycles = 10;
-                    }
-                    if(p == 1){
-                        EXX();
-                        cpuCycles = 4;
-                    }
-                    if(p == 2){
-                        JP(*(rp[2]));
-                        if(rp[2] == HL)
-                            cpuCycles = 4;
+                        z80->cycles += 10;
+                    break;
+
+                    case 1:
+                    switch(p){
+                        case 0:
+                        RET(z80);
+                        z80->cycles += 10;
+                        break;
+
+                        case 1:
+                        EXX(z80);
+                        z80->cycles += 4;
+                        break;
+
+                        case 2:
+                        JP(z80, *rp[2]);
+                        if(rp[2] == z80->HL)
+                            z80->cycles += 4;
                         else
-                            cpuCycles = 8;
-                    }
-                    if(p == 3){
-                        LD_16(SP, *(rp[2]));
-                        if(rp[2] == HL)
-                            cpuCycles = 6;
+                            z80->cycles += 8;
+                        break;
+
+                        case 3:
+                        LD_16(z80, z80->SP, *rp[2]);
+                        if(rp[2] == z80->HL)
+                            z80->cycles += 6;
                         else
-                            cpuCycles = 10;
+                            z80->cycles += 10;
+                        break;
                     }
+                    break;
                 }
-            }
-            if(z == 2){
-                uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
-                *PC += 3;
-                if(y == 0){
-                    JPNZ(val);
+                break;
+
+                case 2:
+                val16 = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                *z80->PC += 3;
+                switch(y){
+                    case 0:
+                    JPNZ(z80, val16);
+                    break;
+
+                    case 1:
+                    JPZ(z80, val16);
+                    break;
+
+                    case 2:
+                    JPNC(z80, val16);
+                    break;
+
+                    case 3:
+                    JPC(z80, val16);
+                    break;
+                    
+                    case 4:
+                    JPPO(z80, val16);
+                    break;
+
+                    case 5:
+                    JPPE(z80, val16);
+                    break;
+
+                    case 6:
+                    JPP(z80, val16);
+                    break;
+
+                    case 7:
+                    JPM(z80, val16);
+                    break;
                 }
-                if(y == 1){
-                    JPZ(val);
-                }
-                if(y == 2){
-                    JPNC(val);
-                }
-                if(y == 3){
-                    JPC(val);
-                }
-                if(y == 4){
-                    JPPO(val);
-                }
-                if(y == 5){
-                    JPPE(val);
-                }
-                if(y == 6){
-                    JPP(val);
-                }
-                if(y == 7){
-                    JPM(val);
-                }
-                cpuCycles = 10;
-            }
-            if(z == 3){
-                if(y == 0){
-                    uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
-                    *PC += 3;
-                    JP(val);
-                    cpuCycles = 10;
-                }
-                if(y == 2){
-                    uint8_t ioaddr = *getReadAddress(*PC+1);
-                    *PC += 2;
-                    OPCODE_OUT(IO+ioaddr, *A);
-                    cpuCycles = 11;
-                }
-                if(y == 3){
-                    uint8_t ioaddr = *getReadAddress(*PC+1);
-                    *PC += 2;
-                    OPCODE_IN(A, IO[ioaddr]);
-                    cpuCycles = 11;
-                }
-                if(y == 4){
-                    *PC += 1;
-                    uint16_t* addr = (uint16_t*)getWriteAddress(*SP);
-                    EX(addr, rp[2]);
-                    if(rp[2] == IX || rp[2] == IY)
-                        cpuCycles = 23;
+                z80->cycles += 10;
+                break;
+            
+                case 3:
+                switch(y){
+                    case 0:
+                    val16 = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                    *z80->PC += 3;
+                    JP(z80, val16);
+                    z80->cycles += 10;
+                    break;
+                    
+                    case 2:
+                    val8 = *z80->readMemory(*z80->PC+1);
+                    *z80->PC += 2;
+                    OPCODE_OUT(z80, *z80->A, val8);
+                    z80->cycles += 11;
+                    break;
+                    
+                    case 3:
+                    val8 = *z80->readMemory(*z80->PC+1);
+                    *z80->PC += 2;
+                    OPCODE_IN(z80, z80->A, val8);
+                    z80->cycles += 11;
+                    break;
+
+                    case 4:
+                    *z80->PC += 1;
+                    uint16_t* addr = (uint16_t*)z80->writeMemory(*z80->SP);
+                    EX(z80, addr, rp[2]);
+                    if(rp[2] == z80->IX || rp[2] == z80->IY)
+                        z80->cycles += 23;
                     else
-                        cpuCycles = 19;
+                        z80->cycles += 19;
+                    break;
+
+                    case 5:
+                    *z80->PC += 1;
+                    EX(z80, z80->DE, z80->HL);
+                    z80->cycles += 4;
+                    break;
+
+                    case 6:
+                    *z80->PC += 1;
+                    DI(z80);
+                    z80->cycles += 4;
+                    break;
+
+                    case 7:
+                    *z80->PC += 1;
+                    EI(z80);
+                    z80->cycles += 4;
+                    break;
                 }
-                if(y == 5){
-                    *PC += 1;
-                    EX(DE, HL);
-                    cpuCycles = 4;
+                break;
+
+                case 4:
+                val16 = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                *z80->PC += 3;
+                old_PC = *z80->PC;
+                switch(y){
+                    case 0:
+                    CALLNZ(z80, val16);
+                    break;
+                    
+                    case 1:
+                    CALLZ(z80, val16);
+                    break;
+                    
+                    case 2:
+                    CALLNC(z80, val16);
+                    break;
+                    
+                    case 3:
+                    CALLC(z80, val16);
+                    break;
+                    
+                    case 4:
+                    CALLPO(z80, val16);
+                    break;
+                    
+                    case 5:
+                    CALLPE(z80, val16);
+                    break;
+                    
+                    case 6:
+                    CALLP(z80, val16);
+                    break;
+                    
+                    case 7:
+                    CALLM(z80, val16);
+                    break;
                 }
-                if(y == 6){
-                    *PC += 1;
-                    DI();
-                    cpuCycles = 4;
-                }
-                if(y == 7){
-                    *PC += 1;
-                    EI();
-                    cpuCycles = 4;
-                }
-            }
-            if(z == 4){
-                uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
-                *PC += 3;
-                uint16_t old_PC = *PC;
-                if(y == 0){
-                    CALLNZ(val);
-                }
-                if(y == 1){
-                    CALLZ(val);
-                }
-                if(y == 2){
-                    CALLNC(val);
-                }
-                if(y == 3){
-                    CALLC(val);
-                }
-                if(y == 4){
-                    CALLPO(val);
-                }
-                if(y == 5){
-                    CALLPE(val);
-                }
-                if(y == 6){
-                    CALLP(val);
-                }
-                if(y== 7){
-                    CALLM(val);
-                }
-                if(old_PC == *PC)
-                    cpuCycles = 10;
+                if(old_PC == *z80->PC)
+                    z80->cycles += 10;
                 else
-                    cpuCycles = 17;
-            }
-            if(z == 5){
-                if(q == 0){
-                    *PC += 1;
-                    PUSH(*(rp2[p]));
-                    if(rp2[p] == IX || rp2[p] == IY)
-                        cpuCycles = 15;
+                    z80->cycles += 17;
+                break;
+
+                case 5:
+                switch(q){
+                    case 0:
+                    *z80->PC += 1;
+                    PUSH(z80, *rp2[p]);
+                    if(rp2[p] == z80->IX || rp2[p] == z80->IY)
+                        z80->cycles += 15;
                     else
-                        cpuCycles = 11;
-                }
-                if(q == 1){
+                        z80->cycles += 11;
+                    break;
+
+                    case 1:
                     if(p == 0){
-                        uint16_t val = *(uint16_t*)getReadAddress(*PC+1);
-                        *PC += 3;
-                        CALL(val);
-                        cpuCycles = 17;
+                        val16 = *(uint16_t*)z80->readMemory(*z80->PC+1);
+                        *z80->PC += 3;
+                        CALL(z80, val16);
+                        z80->cycles += 17;
                     }
+                    break;
                 }
-            }
-            if(z == 6){
-                uint8_t val = *getReadAddress(*PC+1);
+                break;
+
+                case 6:
+                val8 = *z80->readMemory(*z80->PC+1);
                 aluFunc function = alu[y];
-                *PC += 2;
-                (*function)(A, val);
-                cpuCycles = 7;
+                *z80->PC += 2;
+                (*function)(z80, z80->A, val8);
+                z80->cycles += 7;
+                break;
+
+                case 7:
+                *z80->PC += 1;
+                RST(z80, y);
+                z80->cycles += 11;
+                break;
             }
-            if(z == 7){
-                *PC += 1;
-                RST(y);
-                cpuCycles = 11;
-            }
+            break;
         }
+        break;
     }
-   
+
 }
 
 // Z80 INSTRUCTIONS
 
-void NOP(){
-    cpuCycles = 4;
+void NOP(z80_t* z80){
+    z80->cycles += 4;
 }
 
-void EX(uint16_t* regA, uint16_t* regB){
+void EX(z80_t* z80, uint16_t* regA, uint16_t* regB){
     uint16_t tmp = *regA;
     *regA = *regB;
     *regB = tmp;
 }
 
-void DJNZ(int8_t d){
-    *B = *B - 1;   
-    if(*B != 0){
-        JR(d);  
-        cpuCycles = 13;
+void DJNZ(z80_t* z80, int8_t d){
+    *z80->B -= 1;   
+    if(*z80->B != 0){
+        JR(z80, d);  
+        z80->cycles += 13;
     } else
-        cpuCycles = 8;     
+        z80->cycles += 8;     
 }
 
-void JR(int8_t d){
-    *PC += d;
+void JR(z80_t* z80, int8_t d){
+    *z80->PC += d;
 }
 
-void JRNZ(int8_t d){
-    if(!(*F & SET_Z))
-        JR(d);
+void JRNZ(z80_t* z80, int8_t d){
+    if(!(*z80->F & SET_Z))
+        JR(z80, d);
 }
 
-void JRZ(int8_t d){
-    if((*F & SET_Z))
-        JR(d);
+void JRZ(z80_t* z80, int8_t d){
+    if((*z80->F & SET_Z))
+        JR(z80, d);
 }
 
-void JRNC(int8_t d){
-    if(!(*F & SET_C))
-        JR(d);
+void JRNC(z80_t* z80, int8_t d){
+    if(!(*z80->F & SET_C))
+        JR(z80, d);
 }
 
-void JRC(int8_t d){
-    if(*F & SET_C)
-        JR(d);
+void JRC(z80_t* z80, int8_t d){
+    if(*z80->F & SET_C)
+        JR(z80, d);
 }
 
-void LD_8(uint8_t* reg, uint8_t val){
+void LD_8(z80_t* z80, uint8_t* reg, uint8_t val){
     *reg = val;
 }
 
-void LD_16(uint16_t* reg, uint16_t val){
+void LD_16(z80_t* z80, uint16_t* reg, uint16_t val){
     *reg = val;
 }
 
-void ADD_16(uint16_t* regDst, uint16_t* regSrc){
-    *F &= CLEAR_N;
-    if(*regDst + *regSrc > 0xffff)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+void ADD_16(z80_t* z80, uint16_t* regDst, uint16_t* regSrc){
+    CLEAR_FLAG(N);
+    bool carry = calculateCarry(16, *regDst, *regSrc, 0);
+    CHANGE_FLAG(C, carry);
 
-    bool aux_carry = calculateCarry(11, *regDst, *regSrc, 0);
-    if(aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    bool aux_carry = calculateCarry(12, *regDst, *regSrc, 0);
+    CHANGE_FLAG(H, aux_carry);
 
     *regDst += *regSrc;
+
+    CHANGE_FLAG(Y, (*regDst >> 8) & 0b100000);
+    CHANGE_FLAG(X, (*regDst >> 8) & 0b1000);
 }
 
-void INC_16(uint16_t* reg){
+void INC_16(z80_t* z80, uint16_t* reg){
     *reg += 1;
 }
 
-void DEC_16(uint16_t* reg){
+void DEC_16(z80_t* z80, uint16_t* reg){
     *reg -= 1;
 }
 
-void INC_8(uint8_t* reg){
+void INC_8(z80_t* z80, uint8_t* reg){
     bool aux_carry = calculateCarry(4, *reg, 1, 0);
-    if(aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
-
-    if(*reg == 0x7f)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(H, aux_carry);
+    CHANGE_FLAG(P, *reg == 0x7f);
+    CLEAR_FLAG(N);
 
     *reg += 1;
-    *F &= CLEAR_N;
-    setSign8Bit(*reg);
-    setZero(*reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void DEC_8(uint8_t* reg){
+void DEC_8(z80_t* z80, uint8_t* reg){
     bool aux_carry = calculateCarry(4, *reg, -1, 0);
-    if(!aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
-
-    if(*reg == 0x80)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(H, !aux_carry);
+    CHANGE_FLAG(P, *reg == 0x80);
+    SET_FLAG(N);
 
     *reg -= 1;
-    *F |= SET_N;
-    setSign8Bit(*reg);
-    setZero(*reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void DAA(){
+void DAA(z80_t* z80){
     // explanation at:
     //      http://z80-heaven.wikidot.com/instructions-set:daa
     uint8_t correction = 0;
-    if((*A & 0X0F) > 0x09 || (*F & SET_H))
+    if((*z80->A & 0X0F) > 0x09 || (*z80->F & SET_H))
         correction += 0x06;
 
-    if((*A > 0x99) || (*F & SET_C)){
+    if((*z80->A > 0x99) || (*z80->F & SET_C)){
         correction += 0x60;
-        *F |= SET_C;
+        SET_FLAG(C);
     }
 
-    if(*F & SET_N){
-        bool old_half = (*F & SET_H);
-        bool new_half = old_half && (*A & 0x0F) < 0x06;
-        if(new_half)
-            *F |= SET_H;
-        else
-            *F &= CLEAR_H;
-        *A -= correction;
+    bool new_half;
+    if(*z80->F & SET_N){
+        bool old_half = (*z80->F & SET_H);
+        new_half = old_half && (*z80->A & 0x0F) < 0x06;
+        *z80->A -= correction;
     } else {
-        bool new_half = (*A & 0x0F) > 0x09;
-        if(new_half)
-            *F |= SET_H;
-        else
-            *F &= CLEAR_H;
-        *A += correction;
+        new_half = (*z80->A & 0x0F) > 0x09;
+        *z80->A += correction;
     }
+    CHANGE_FLAG(H, new_half);
 
-    setSign8Bit(*A);
-    setZero(*A);
-    setParity(*A);
+    setSign8Bit(z80, *z80->A);
+    setZero(z80, *z80->A);
+    setParity(z80, *z80->A);
+
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
-void CPL(){
-    *A = ~(*A);
-    *F |= SET_N;
-    *F |= SET_H;
+void CPL(z80_t* z80){
+    *z80->A = ~(*z80->A);
+    SET_FLAG(N);
+    SET_FLAG(H);
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
-void SCF(){
-    *F |= SET_C;
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+void SCF(z80_t* z80){
+    SET_FLAG(C);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
-void CCF(){
-    bool carry = *F & SET_C;
-    if(carry){
-        *F &= CLEAR_C;
-        *F |= SET_H;
-    } else {
-        *F |= SET_C;
-        *F &= CLEAR_H;
-    }
-    *F &= CLEAR_N;
+void CCF(z80_t* z80){
+    bool carry = *z80->F & SET_C;
+    CHANGE_FLAG(C, !carry);
+    CHANGE_FLAG(H, carry);
+    CLEAR_FLAG(N);
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
-void HLT(){
+void HLT(z80_t* z80){
+    z80->HALTED = true;
 }
 
-void RETNZ(){
-    if(!(*F & SET_Z))
-        POP(PC);
+void RETNZ(z80_t* z80){
+    if(!(*z80->F & SET_Z))
+        POP(z80, z80->PC);
 }
 
-void RETZ(){
-    if(*F & SET_Z)
-        POP(PC);
+void RETZ(z80_t* z80){
+    if(*z80->F & SET_Z)
+        POP(z80, z80->PC);
 }
 
-void RETNC(){
-    if(!(*F & SET_C))
-        POP(PC);
+void RETNC(z80_t* z80){
+    if(!(*z80->F & SET_C))
+        POP(z80, z80->PC);
 }
 
-void RETC(){
-    if(*F & SET_C)
-        POP(PC);
+void RETC(z80_t* z80){
+    if(*z80->F & SET_C)
+        POP(z80, z80->PC);
 }
 
-void RETPO(){
-    if(!(*F & SET_P))
-        POP(PC);
+void RETPO(z80_t* z80){
+    if(!(*z80->F & SET_P))
+        POP(z80, z80->PC);
 }
 
-void RETPE(){
-    if(*F & SET_P)
-        POP(PC);
+void RETPE(z80_t* z80){
+    if(*z80->F & SET_P)
+        POP(z80, z80->PC);
 }
 
-void RETP(){
-    if(!(*F & SET_S))
-        POP(PC);
+void RETP(z80_t* z80){
+    if(!(*z80->F & SET_S))
+        POP(z80, z80->PC);
 }
 
-void RETM(){
-    if(*F & SET_S)
-        POP(PC);
+void RETM(z80_t* z80){
+    if(*z80->F & SET_S)
+        POP(z80, z80->PC);
 }
 
-void POP(uint16_t* reg){
-    *reg = *(uint16_t*)getReadAddress(*SP);
-    *SP = *SP + 2; 
+void POP(z80_t* z80, uint16_t* reg){
+    *reg = *(uint16_t*)z80->readMemory(*z80->SP);
+    *z80->SP = *z80->SP + 2; 
 }
 
-void RET(){
-    POP(PC);
+void RET(z80_t* z80){
+    POP(z80, z80->PC);
 }
 
-void EXX(){
-    EX(BC, BC_);
-    EX(DE, DE_);
-    EX(HL, HL_);
+void EXX(z80_t* z80){
+    EX(z80, z80->BC, z80->BC_);
+    EX(z80, z80->DE, z80->DE_);
+    EX(z80, z80->HL, z80->HL_);
 }
 
-void JP(uint16_t val){
-    *PC = val;
+void JP(z80_t* z80, uint16_t val){
+    *z80->PC = val;
 }
 
-void JPNZ(uint16_t val){
-    if(!(*F & SET_Z))
-        JP(val);
+void JPNZ(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_Z))
+        JP(z80, val);
 }
 
-void JPZ(uint16_t val){
-    if(*F & SET_Z)
-        JP(val);
+void JPZ(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_Z)
+        JP(z80, val);
 }
 
-void JPNC(uint16_t val){
-    if(!(*F & SET_C))
-        JP(val);
+void JPNC(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_C))
+        JP(z80, val);
 }
 
-void JPC(uint16_t val){
-    if(*F & SET_C)
-        JP(val);
+void JPC(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_C)
+        JP(z80, val);
 }
 
-void JPPO(uint16_t val){
-    if(!(*F & SET_P))
-        JP(val);
+void JPPO(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_P))
+        JP(z80, val);
 }
 
-void JPPE(uint16_t val){
-    if(*F & SET_P)
-        JP(val);
+void JPPE(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_P)
+        JP(z80, val);
 }
 
-void JPP(uint16_t val){
-    if(!(*F & SET_S))
-        JP(val);
+void JPP(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_S))
+        JP(z80, val);
 }
 
-void JPM(uint16_t val){
-    if(*F & SET_S)
-        JP(val);
+void JPM(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_S)
+        JP(z80, val);
 }
 
-void OPCODE_OUT(uint8_t* io, uint8_t val){
-    *io = val;
+void OPCODE_OUT(z80_t* z80, uint8_t data, uint16_t ioaddr){
+    uint8_t* ioport = z80->writeIO(ioaddr);
+    *ioport = data;
 }
 
-void OPCODE_IN(uint8_t* reg, uint8_t val){
-    *reg = val;
+void OPCODE_IN(z80_t* z80, uint8_t* reg, uint16_t ioaddr){
+    uint8_t* ioport = z80->readIO(ioaddr);
+    *reg = *ioport;
 }
 
-void DI(){
-    INTERRUPT_ENABLED = false;
+void DI(z80_t* z80){
+    z80->INTERRUPT_ENABLED = false;
 }
 
-void EI(){
-    INTERRUPT_ENABLED = true;
+void EI(z80_t* z80){
+    z80->INTERRUPT_ENABLED = true;
 }
 
-void CALL(uint16_t val){
-    PUSH(*PC);
-    *PC = val;
+void CALL(z80_t* z80, uint16_t val){
+    PUSH(z80, *z80->PC);
+    *z80->PC = val;
 }
 
-void CALLNZ(uint16_t val){
-    if(!(*F & SET_Z))
-        CALL(val);
+void CALLNZ(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_Z))
+        CALL(z80, val);
 }
 
-void CALLZ(uint16_t val){
-    if(*F & SET_Z)
-        CALL(val);
+void CALLZ(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_Z)
+        CALL(z80, val);
 }
 
-void CALLNC(uint16_t val){
-    if(!(*F & SET_C))
-        CALL(val);
+void CALLNC(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_C))
+        CALL(z80, val);
 }
 
-void CALLC(uint16_t val){
-    if(*F & SET_C)
-        CALL(val);
+void CALLC(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_C)
+        CALL(z80, val);
 }
 
-void CALLPO(uint16_t val){
-    if(!(*F & SET_P))
-        CALL(val);
+void CALLPO(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_P))
+        CALL(z80, val);
 }
 
-void CALLPE(uint16_t val){
-    if(*F & SET_P)
-        CALL(val);
+void CALLPE(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_P)
+        CALL(z80, val);
 }
 
-void CALLP(uint16_t val){
-    if(!(*F & SET_S))
-        CALL(val);
+void CALLP(z80_t* z80, uint16_t val){
+    if(!(*z80->F & SET_S))
+        CALL(z80, val);
 }
 
-void CALLM(uint16_t val){
-    if(*F & SET_S)
-        CALL(val);
+void CALLM(z80_t* z80, uint16_t val){
+    if(*z80->F & SET_S)
+        CALL(z80, val);
 }
 
-void PUSH(uint16_t val){
-    *SP = *SP - 2;
-    *(uint16_t*)getWriteAddress(*SP) = val;
+void PUSH(z80_t* z80, uint16_t val){
+    *z80->SP = *z80->SP - 2;
+    *(uint16_t*)z80->writeMemory(*z80->SP) = val;
 }
 
-void RST(uint8_t addr){
-    CALL(addr*8);
+void RST(z80_t* z80, uint8_t addr){
+    CALL(z80, addr*8);
 }
 
-void RLCA(){
-    bool carry = *A & 0b10000000;
-    if(carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    *A = (*A << 1) | (carry);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
-}
+void RLCA(z80_t* z80){
+    bool carry = *z80->A & 0b10000000;
+    CHANGE_FLAG(C, carry);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
 
-void RRCA(){
-    bool carry = *A & 0b1;
-    if(carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    *A = (*A >> 1) | (carry << 7);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
-}
-
-void RLA(){
-    bool carry = *F & SET_C;
-    if(*A & 0b10000000)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    *A = (*A << 1) | carry;
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
-}
-
-void RRA(){
-    bool carry = *F & SET_C;
-    if(*A & 0b1)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    *A = (*A >> 1) | (carry << 7);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
-}
-
-void RLC(uint8_t* reg){
-    bool msb = *reg >> 7;
-    if(msb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    *reg = (*reg << 1) | (msb);
+    *z80->A = (*z80->A << 1) | (carry);
     
-    setSign8Bit(*reg);
-    setZero(*reg);
-    setParity(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
-void RRC(uint8_t* reg){
+void RRCA(z80_t* z80){
+    bool carry = *z80->A & 0b1;
+    CHANGE_FLAG(C, carry);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+    *z80->A = (*z80->A >> 1) | (carry << 7);
+
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+}
+
+void RLA(z80_t* z80){
+    bool carry = *z80->F & SET_C;
+    CHANGE_FLAG(C, *z80->A & 0b10000000);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+    *z80->A = (*z80->A << 1) | carry;
+
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
+}
+
+void RRA(z80_t* z80){
+    bool carry = *z80->F & SET_C;
+    CHANGE_FLAG(C, *z80->A & 0b1);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+    *z80->A = (*z80->A >> 1) | (carry << 7);
+
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
+}
+
+void RLC(z80_t* z80, uint8_t* reg){
+    bool msb = *reg >> 7;
+    CHANGE_FLAG(C, msb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+    *reg = (*reg << 1) | msb;
+    
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    setParity(z80, *reg);
+    
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
+}
+
+void RRC(z80_t* z80, uint8_t* reg){
     bool lsb = *reg & 0b1;
-    if(lsb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, lsb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
     *reg = (lsb << 7) | (*reg >> 1);
 
-    setSign8Bit(*reg);
-    setZero(*reg);
-    setParity(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    setParity(z80, *reg);
+    
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
-void RL(uint8_t* reg){
-    bool carry = *F & SET_C;
+void RL(z80_t* z80, uint8_t* reg){
+    bool carry = *z80->F & SET_C;
     bool msb = *reg >> 7;
     *reg = (*reg << 1) | carry;
-    if(msb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, msb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
 
-    setSign8Bit(*reg);
-    setZero(*reg);
-    setParity(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    setParity(z80, *reg);
+    
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
-void RR(uint8_t* reg){
-    bool carry = *F & SET_C;
+void RR(z80_t* z80, uint8_t* reg){
+    bool carry = *z80->F & SET_C;
     bool lsb = *reg & 0b1;
     *reg = (*reg >> 1) | (carry << 7);
-    if(lsb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, lsb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
 
-    setSign8Bit(*reg);
-    setZero(*reg);
-    setParity(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    setParity(z80, *reg);
+
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
-void SLA(uint8_t* reg){
+void SLA(z80_t* z80, uint8_t* reg){
     bool msb = *reg >> 7;
-    if(msb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, msb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+
     *reg = *reg << 1;
 
-    setParity(*reg);
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setParity(z80, *reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
-void SRA(uint8_t* reg){
+void SRA(z80_t* z80, uint8_t* reg){
     bool sign = *reg >> 7;
     bool lsb = *reg & 0b1;
-    if(lsb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, lsb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+
     *reg = (*reg >> 1) | (sign << 7);
 
-    setParity(*reg);
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setParity(z80, *reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
-void SLL(uint8_t* reg){
+void SLL(z80_t* z80, uint8_t* reg){
     bool msb = *reg >> 7;
-    if(msb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, msb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+
     *reg = *reg << 1;
     *reg = *reg | 0b1;
 
-    setParity(*reg);
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setParity(z80, *reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
 
-void SRL(uint8_t* reg){
+void SRL(z80_t* z80, uint8_t* reg){
     bool lsb = *reg & 0b1;
-    if(lsb)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, lsb);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
+
     *reg = *reg >> 1;
    
-    setParity(*reg);
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    setParity(z80, *reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    
+    CHANGE_FLAG(X, *reg & 0b1000);
+    CHANGE_FLAG(Y, *reg & 0b100000);
 }
 
-void BIT(uint8_t bit, uint8_t* reg){
+void BIT(z80_t* z80, uint8_t bit, uint8_t* reg){
     uint8_t masked_bit = *reg & (1 << bit);
-    if(masked_bit == 0){
-        *F |= SET_Z;
-        *F |= SET_P;
-    } else {
-        *F &= CLEAR_Z;
-        *F &= CLEAR_P;
-    }  
-
-    if(masked_bit & 0x80)
-        *F |= SET_S;
-    else
-        *F &= CLEAR_S;
-
-    *F |= SET_H;
-    *F &= CLEAR_N;
+    CHANGE_FLAG(Z, masked_bit == 0);
+    CHANGE_FLAG(P, masked_bit == 0);
+    CHANGE_FLAG(S, masked_bit & 0x80);
+    SET_FLAG(H);
+    CLEAR_FLAG(N);
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void RES(uint8_t bit, uint8_t* reg){
+void RES(z80_t* z80, uint8_t bit, uint8_t* reg){
     *reg = *reg & (~(uint8_t)(1 << bit));
 }
 
-void SET(uint8_t bit, uint8_t* reg){
+void SET(z80_t* z80, uint8_t bit, uint8_t* reg){
     *reg = * reg | (1 << bit);
 }
 
-void ADD(uint8_t* reg, uint8_t val){
+void ADD(z80_t* z80, uint8_t* reg, uint8_t val){
     uint8_t res = *reg + val;
     bool carry = calculateCarry(8, *reg, val, 0);
-    if(carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, carry);
 
     bool aux_carry = calculateCarry(4, *reg, val, 0);
-    if(aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    CHANGE_FLAG(H, aux_carry);
     
     bool overflow = calculateCarry(7, *reg, val, 0) != calculateCarry(8, *reg, val, 0);
-    if(overflow)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(P, overflow);
 
     *reg = res;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    CLEAR_FLAG(N);
+
+    CHANGE_FLAG(Y, res & 0b100000);
+    CHANGE_FLAG(X, res & 0b1000);
 }
 
-void ADC(uint8_t* reg, uint8_t val){
-    bool carry = *F & SET_C;
+void ADC(z80_t* z80, uint8_t* reg, uint8_t val){
+    bool carry = *z80->F & SET_C;
     uint8_t res = *reg + val + carry;
 
     bool new_carry = calculateCarry(8, *reg, val, carry);
-    if(new_carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, new_carry);
 
     bool aux_carry = calculateCarry(4, *reg, val, carry);
-    if(aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    CHANGE_FLAG(H, aux_carry);
     
     bool overflow = calculateCarry(7, *reg, val, carry) != calculateCarry(8, *reg, val, carry);
-    if(overflow)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(P, overflow);
 
     *reg = res;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    CLEAR_FLAG(N);
+
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void SUB(uint8_t* reg, uint8_t val){
+void SUB(z80_t* z80, uint8_t* reg, uint8_t val){
     val = ~val + 1;
     bool carry = calculateCarry(8, *reg, val - 1, 1);
-    if(!carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, !carry);
 
     bool aux_carry = calculateCarry(4, *reg, val - 1, 1);
-    if(!aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    CHANGE_FLAG(H, !aux_carry);
 
     uint8_t res = *reg + val;
 
     bool overflow = calculateCarry(7, *reg, val - 1, 1) != calculateCarry(8, *reg, val - 1, 1);
-    if(overflow)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(P, overflow);
 
     *reg = res;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F |= SET_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    SET_FLAG(N);
+
+    CHANGE_FLAG(Y, res & 0b100000);
+    CHANGE_FLAG(X, res & 0b1000);
 }
 
-void SBC(uint8_t* reg, uint8_t val){
+void SBC(z80_t* z80, uint8_t* reg, uint8_t val){
     val = ~val + 1;
-    bool carry = *F & SET_C;
+    bool carry = *z80->F & SET_C;
     bool new_carry = calculateCarry(8, *reg, val - 1, !carry);
     bool aux_carry = calculateCarry(4, *reg, val - 1, !carry);
 
-    if(!new_carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    
-    if(!aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    CHANGE_FLAG(C, !new_carry);
+    CHANGE_FLAG(H, !aux_carry);
 
     uint8_t res = *reg + val - carry;
     bool overflow = calculateCarry(7, *reg, val - 1, !carry) != calculateCarry(8, *reg, val - 1, !carry);
-    if(overflow)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;   
+    CHANGE_FLAG(P, overflow); 
 
     *reg = res;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F |= SET_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    SET_FLAG(N);
+
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void AND(uint8_t* reg, uint8_t val){
+void AND(z80_t* z80, uint8_t* reg, uint8_t val){
     *reg &= val;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    *F |= SET_H;
-    *F &= CLEAR_C;
-    *F &= CLEAR_N;
-    setParity(*reg);
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    SET_FLAG(H);
+    CLEAR_FLAG(C);
+    CLEAR_FLAG(N);
+    setParity(z80, *reg);
+
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void XOR(uint8_t* reg, uint8_t val){
+void XOR(z80_t* z80, uint8_t* reg, uint8_t val){
     *reg ^= val;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    setParity(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_C;
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    setParity(z80, *reg);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(C);
+    CLEAR_FLAG(N);
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void OR(uint8_t* reg, uint8_t val){
+void OR(z80_t* z80, uint8_t* reg, uint8_t val){
     *reg |= val;
-    setSign8Bit(*reg);
-    setZero(*reg);
-    setParity(*reg);
-    *F &= CLEAR_H;
-    *F &= CLEAR_C;
-    *F &= CLEAR_N;
+    setSign8Bit(z80, *reg);
+    setZero(z80, *reg);
+    setParity(z80, *reg);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(C);
+    CLEAR_FLAG(N);
+    CHANGE_FLAG(Y, *reg & 0b100000);
+    CHANGE_FLAG(X, *reg & 0b1000);
 }
 
-void CP(uint8_t* reg, uint8_t val){
+void CP(z80_t* z80, uint8_t* reg, uint8_t val){
     uint8_t copy = *reg;
-    SUB(reg, val);
+    SUB(z80, reg, val);
     *reg = copy;
+
+    CHANGE_FLAG(Y, val & 0b100000);
+    CHANGE_FLAG(X, val & 0b1000);
 }
 
-void ADC_16(uint16_t* reg, uint16_t val){
-    bool carry = *F & SET_C;
+void ADC_16(z80_t* z80, uint16_t* reg, uint16_t val){
+    bool carry = *z80->F & SET_C;
 
     bool new_carry = calculateCarry(16, *reg, val, carry);
-    if(new_carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
+    CHANGE_FLAG(C, new_carry);
     
     bool aux_carry = calculateCarry(12, *reg, val, carry);
-    if(aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    CHANGE_FLAG(H, aux_carry);
 
     uint16_t res = *reg + val + carry;
     bool overflow = calculateCarry(16, *reg, val, carry) != calculateCarry(15, *reg, val, carry);
-    if(overflow)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(P, overflow);
            
     *reg = res;
-    setSign16Bit(*reg);
-    setZero(*reg);
-    *F &= CLEAR_N;
+    setSign16Bit(z80, *reg);
+    setZero(z80, *reg);
+    CLEAR_FLAG(N);
+
+    CHANGE_FLAG(Y, (res >> 8) & 0b100000);
+    CHANGE_FLAG(X, (res >> 8) & 0b1000);
 }
 
-void SBC_16(uint16_t* reg, uint16_t val){
+void SBC_16(z80_t* z80, uint16_t* reg, uint16_t val){
     val = ~val + 1;
-    bool carry = *F & SET_C;
+    bool carry = *z80->F & SET_C;
     bool new_carry = calculateCarry(16, *reg, val - 1, !carry);
     bool aux_carry = calculateCarry(12, *reg, val - 1, !carry);
 
-    if(!new_carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-    
-    if(!aux_carry)
-        *F |= SET_H;
-    else
-        *F &= CLEAR_H;
+    CHANGE_FLAG(C, !new_carry);
+    CHANGE_FLAG(H, !aux_carry);
 
     uint16_t res = *reg + val - carry;
     bool overflow = calculateCarry(16, *reg, val - 1, !carry) != calculateCarry(15, *reg, val - 1, !carry);
-    if(overflow)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;   
+    CHANGE_FLAG(P, overflow);  
 
     *reg = res;
-    setSign16Bit(*reg);
-    setZero(*reg);
-    *F |= SET_N;
+    setSign16Bit(z80, *reg);
+    setZero(z80, *reg);
+    SET_FLAG(N);
+
+    CHANGE_FLAG(Y, (res >> 8) & 0b100000);
+    CHANGE_FLAG(X, (res >> 8) & 0b1000);
 }
 
-void NEG(uint8_t* reg){
+void NEG(z80_t* z80, uint8_t* reg){
     uint8_t tmp = *reg;
     *reg = 0;
-    SUB(reg, tmp);
+    SUB(z80, reg, tmp);
 }
 
-void RETI(){
-    RET();
+void RETI(z80_t* z80){
+    RET(z80);
 }
 
-void RETN(){
-    RET();
+void RETN(z80_t* z80){
+    RET(z80);
 }
 
-void IM(){
-    // this opcode is not used
+void IM(z80_t* z80, uint8_t im_mode){
+    z80->INTERRUPT_MODE = im_mode;
 }
 
-void RRD(){
-    uint8_t tmpA = *A;
-    uint8_t val = *getReadAddress(*HL);
-    *A = (tmpA & 0xF0) | (val & 0xF);
-    *getWriteAddress(*HL) = (val >> 4) | (tmpA << 4);
-    setSign8Bit(*A);
-    setZero(*A);
-    setParity(*A);
-    *F &= CLEAR_N;
-    *F &= CLEAR_H;
+void RRD(z80_t* z80){
+    uint8_t tmpA = *z80->A;
+    uint8_t val = *z80->readMemory(*z80->HL);
+    *z80->A = (tmpA & 0xF0) | (val & 0xF);
+    *z80->writeMemory(*z80->HL) = (val >> 4) | (tmpA << 4);
+    setSign8Bit(z80, *z80->A);
+    setZero(z80, *z80->A);
+    setParity(z80, *z80->A);
+    CLEAR_FLAG(N);
+    CLEAR_FLAG(H);
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
-void RLD(){
-    uint8_t tmpA = *A;
-    uint8_t val = *getReadAddress(*HL);
-    *A = (tmpA & 0xF0) | (val >> 4);
-    *getWriteAddress(*HL) = (val << 4) | (tmpA & 0xF);
-    setSign8Bit(*A);
-    setZero(*A);
-    setParity(*A);
-    *F &= CLEAR_N;
-    *F &= CLEAR_H;
+void RLD(z80_t* z80){
+    uint8_t tmpA = *z80->A;
+    uint8_t val = *z80->readMemory(*z80->HL);
+    *z80->A = (tmpA & 0xF0) | (val >> 4);
+    *z80->writeMemory(*z80->HL) = (val << 4) | (tmpA & 0xF);
+    setSign8Bit(z80, *z80->A);
+    setZero(z80, *z80->A);
+    setParity(z80, *z80->A);
+    CLEAR_FLAG(N);
+    CLEAR_FLAG(H);
+    CHANGE_FLAG(X, *z80->A & 0b1000);
+    CHANGE_FLAG(Y, *z80->A & 0b100000);
 }
 
 // block instructions
 
-void LDI(){
-    *getWriteAddress(*DE) = *getReadAddress(*HL);
-    *DE += 1;
-    *HL += 1;
-    *BC -= 1;
+void LDI(z80_t* z80){
+    uint8_t hl_val = *z80->readMemory(*z80->HL);
+    *z80->writeMemory(*z80->DE) = hl_val;
+    *z80->DE += 1;
+    *z80->HL += 1;
+    *z80->BC -= 1;
 
-    if(*BC != 0)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(P, *z80->BC != 0);
+    CLEAR_FLAG(H);
+    CLEAR_FLAG(N);
 
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    z80->cycles += 16;
 
-    cpuCycles = 16;
+    uint8_t res = *z80->A + hl_val;
+    CHANGE_FLAG(X, res & 0b1000);
+    CHANGE_FLAG(Y, res & 0b10);
 }
 
-void LDD(){
-    *getWriteAddress(*DE) = *getReadAddress(*HL);
-    *DE -= 1;
-    *HL -= 1;
-    *BC -= 1;
+void LDD(z80_t* z80){
+    LDI(z80);
+    *z80->HL -= 2;
+    *z80->DE -= 2;
+}
 
-    if(*BC != 0)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+void LDIR(z80_t* z80){
+    LDI(z80);
+    z80->cycles -= 16;
+    if(*z80->BC != 0){
+        *z80->PC -= 2;
+        SET_FLAG(P);
+        z80->cycles += 21;
+    } else {
+        CLEAR_FLAG(P);
+        z80->cycles += 16;
+    }
+}
+
+void LDDR(z80_t* z80){
+    LDD(z80);
+    z80->cycles -= 16;
+    if(*z80->BC != 0){
+        *z80->PC -= 2;
+        z80->cycles += 21;
+    } else {
+        z80->cycles += 16;
+    }
+}
+
+void CPI(z80_t* z80){
+    bool carry = (bool)(*z80->F & SET_C);
+    uint8_t memory_val = *z80->readMemory(*z80->HL);
+    CP(z80, z80->A, memory_val);
+    *z80->HL += 1;
+    *z80->BC -= 1;
+
+    CHANGE_FLAG(P, *z80->BC != 0);
+    CHANGE_FLAG(C, carry);
+    SET_FLAG(N);
+
+    bool aux_carry = (bool)(*z80->F & SET_H);
+    uint8_t val = *z80->A - memory_val - aux_carry;
     
-    *F &= CLEAR_H;
-    *F &= CLEAR_N;
+    CHANGE_FLAG(Y, val & 0b10);
+    CHANGE_FLAG(X, val & 0b1000);
 
-    cpuCycles = 16;
+    z80->cycles += 16;
 }
 
-void LDIR(){
-    LDI();
-    if(*BC != 0){
-        *PC -= 2;
-        *F |= SET_P;
-        cpuCycles = 21;
+void CPD(z80_t* z80){
+    CPI(z80);
+    *z80->HL -= 2;
+}
+
+void CPIR(z80_t* z80){
+    CPI(z80);
+    z80->cycles -= 16;
+    if(*z80->BC != 0 && !(bool)(*z80->F & SET_Z)){
+        *z80->PC -= 2;
+        z80->cycles += 21;
     } else {
-        *F &= CLEAR_P;
-        cpuCycles = 16;
+        z80->cycles += 16;
     }
 }
 
-void LDDR(){
-    LDD();
-    if(*BC != 0){
-        *PC -= 2;
-        cpuCycles = 21;
+void CPDR(z80_t* z80){
+    CPD(z80);
+    z80->cycles -= 16;
+    if(*z80->BC != 0 && !(bool)(*z80->F & SET_Z)){
+        *z80->PC -= 2;
+        z80->cycles += 21;
     } else {
-        cpuCycles = 16;
+        z80->cycles += 16;
     }
 }
 
-void CPI(){
-    bool carry = (bool)(*F & SET_C);
-    CP(A, *getReadAddress(*HL));
-    *HL += 1;
-    *BC -= 1;
-
-    if(*BC != 0)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
-
-    if(carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-
-    *F |= SET_N;
-    cpuCycles = 16;
+void INI(z80_t* z80){
+    *z80->B -= 1;
+    OPCODE_IN(z80, z80->writeMemory(*z80->HL), *z80->BC); 
+    *z80->HL += 1;  
+    z80->cycles += 16;
 }
 
-void CPD(){
-    bool carry = (bool)(*F & SET_C);
-    CP(A, *getReadAddress(*HL));
-    *HL -= 1;
-    *BC -= 1;
-
-    if(*BC != 0)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
-
-    if(carry)
-        *F |= SET_C;
-    else
-        *F &= CLEAR_C;
-
-    *F |= SET_N;
-    cpuCycles = 16;
+void IND(z80_t* z80){
+    *z80->B -= 1;  
+    OPCODE_IN(z80, z80->writeMemory(*z80->HL), *z80->BC); 
+    *z80->HL -= 1;
+    z80->cycles += 16;
 }
 
-void CPIR(){
-    CPI();
-    if(*BC != 0 && !(bool)(*F & SET_Z)){
-        *PC -= 2;
-        cpuCycles = 21;
+void INIR(z80_t* z80){
+    INI(z80);
+    z80->cycles -= 16;
+    if(*z80->B != 0){
+        *z80->PC -= 2;
+        z80->cycles += 21;
     } else {
-        cpuCycles = 16;
+        z80->cycles += 16;
     }
 }
 
-void CPDR(){
-    CPD();
-    if(*BC != 0 && !(bool)(*F & SET_Z)){
-        *PC -= 2;
-        cpuCycles = 21;
+void INDR(z80_t* z80){
+    IND(z80);
+    z80->cycles -= 16;
+    if(*z80->B != 0){
+        *z80->PC -= 2;
+        z80->cycles += 21;
     } else {
-        cpuCycles = 16;
+        z80->cycles += 16;
     }
 }
 
-void INI(){
-    OPCODE_IN(getWriteAddress(*HL), IO[*C]); 
-    *HL += 1;
-    *B -= 1;  
-    cpuCycles = 16;
+void OUTI(z80_t* z80){
+    *z80->B -= 1;
+    OPCODE_OUT(z80, *z80->readMemory(*z80->HL), *z80->BC);
+    *z80->HL += 1;
+    z80->cycles += 16;
 }
 
-void IND(){
-    OPCODE_IN(getWriteAddress(*HL), IO[*C]); 
-    *HL -= 1;
-    *B -= 1;  
-    cpuCycles = 16;
+void OUTD(z80_t* z80){
+    *z80->B -= 1;
+    OPCODE_OUT(z80, *z80->readMemory(*z80->HL), *z80->BC);
+    *z80->HL -= 1;
+    z80->cycles += 16;
 }
 
-void INIR(){
-    INI();
-    if(*B != 0){
-        *PC -= 2;
-        cpuCycles = 21;
-    } else
-        cpuCycles = 16;
+void OTIR(z80_t* z80){
+    OUTI(z80);
+    z80->cycles -= 16;
+    if(*z80->B != 0){
+        *z80->PC -= 2;
+        z80->cycles += 21;
+    } else {
+        z80->cycles += 16;
+    }
 }
 
-void INDR(){
-    IND();
-    if(*B != 0){
-        *PC -= 2;
-        cpuCycles = 21;
-    } else
-        cpuCycles = 16;
+void OTDR(z80_t* z80){
+    OUTD(z80);
+    z80->cycles -= 16;
+    if(*z80->B != 0){
+        *z80->PC -= 2;
+        z80->cycles += 21;
+    } else {
+        z80->cycles += 16;
+    }
 }
 
-void OUTI(){
-    OPCODE_OUT(IO+*C, *getReadAddress(*HL));
-    *HL += 1;
-    *B -= 1;
-    cpuCycles = 16;
-}
-
-void OUTD(){
-    OPCODE_OUT(IO+*C, *getReadAddress(*HL));
-    *HL -= 1;
-    *B -= 1;
-    cpuCycles = 16;
-}
-
-void OTIR(){
-    OUTI();
-    if(*B != 0){
-        *PC -= 2;
-        cpuCycles = 21;
-    } else
-        cpuCycles = 16;
-}
-
-void OTDR(){
-    OUTD();
-    if(*B != 0){
-        *PC -= 2;
-        cpuCycles = 21;
-    } else
-        cpuCycles = 16;
-}
-
-void setParity(uint8_t val){
+void setParity(z80_t* z80, uint8_t val){
     int counter = 0;
     while(val != 0){
         counter += (val & 0x1);
         val = val >> 1;
     }
     bool parity = (counter % 2 == 0);
-    if(parity)
-        *F |= SET_P;
-    else
-        *F &= CLEAR_P;
+    CHANGE_FLAG(P, parity);
 }
 
-void setZero(uint16_t val){
-    if(val == 0)
-        *F |= SET_Z;
-    else
-        *F &= CLEAR_Z;
+void setZero(z80_t* z80, uint16_t val){
+    CHANGE_FLAG(Z, val == 0);
 }
 
-void setSign8Bit(uint8_t val){
-    if(val & 0x80)
-        *F |= SET_S;
-    else
-        *F &= CLEAR_S;
+void setSign8Bit(z80_t* z80, uint8_t val){
+    CHANGE_FLAG(S, val & 0x80);
 }
 
-void setSign16Bit(uint16_t val){
-    if(val & 0x8000)
-        *F |= SET_S;
-    else
-        *F &= CLEAR_S;
+void setSign16Bit(z80_t* z80, uint16_t val){
+    CHANGE_FLAG(S, val & 0x8000);
 }
 
 bool calculateCarry(int bit, uint16_t a, uint16_t b, bool cy) {

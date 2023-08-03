@@ -25,9 +25,9 @@ uint8_t colorTable[8] = {
 void initVideoData(){
     romsetArray[currentRom]->initVideo();
 
-    palettesInfo = getReadAddress(PALETTE_RAM);
-    tilesInfo    = getReadAddress(TILE_RAM); 
-    spritesInfo  = getReadAddress(SPRITE_RAM);
+    palettesInfo = getReadMemoryAddr(PALETTE_RAM);
+    tilesInfo    = getReadMemoryAddr(TILE_RAM); 
+    spritesInfo  = getReadMemoryAddr(SPRITE_RAM);
 }
 
 void freeVideoData(){
