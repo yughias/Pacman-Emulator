@@ -3,7 +3,7 @@
 
 typedef void (*rotateFunc)(z80_t*, uint8_t*);
 typedef void (*aluFunc)(z80_t*, uint8_t*, uint8_t);
-typedef void (*blockFunc)();
+typedef void (*blockFunc)(z80_t*);
 
 void useDDRegisterTable(z80_t*, uint8_t**, uint16_t**, uint16_t**);
 void useFDRegisterTable(z80_t*, uint8_t**, uint16_t**, uint16_t**);
