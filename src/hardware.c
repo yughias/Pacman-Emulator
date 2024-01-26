@@ -39,6 +39,14 @@ void emulateHardware(){
 }
 
 void reset(){
-    freeAll();
-    initAll();
+    #ifdef __EMSCRIPTEN__
+        freeMemory();
+        freeVideoData();
+        initMemory();
+        initVideoData();
+        initCPU(&cpu);
+    #else
+        freeAll();
+        initAll();
+    #endif
 }

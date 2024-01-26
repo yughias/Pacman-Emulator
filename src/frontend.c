@@ -35,13 +35,13 @@ const char ghost_names_descriptor[2][32] = {
 };
 
 char         message[33]      = "\0";
-uint64_t     remaining_frames = 0;
+unsigned int remaining_frames = 0;
 
-bool         startupScreen      = true;
+bool         startupScreen    = true;
 bool         emulationStopped = false;
 bool         soundMute        = false;
 unsigned int emulationSpeed   = 1;
-unsigned int volumeScaler = 50;
+unsigned int volumeScaler     = 50;
 
 bool         usingShader = false; 
 Shader       crtShader;
@@ -136,9 +136,7 @@ void updateHotKeys(const Uint8* keyState){
             break;
 
             case SDLK_F9:
-            currentRom = (currentRom + 1 ) % romsetArrayLength;
-            setFrontendMessage(romsetArray[currentRom]->name);
-            reset();
+            loadNextGame();
             break;
         }
     }
@@ -204,3 +202,19 @@ void showStartupScreen(){
 
     showText("PRESS RETURN TO CONTINUE",     0, 32);
 }
+
+void loadNextGame(){
+    currentRom = (currentRom + 1 ) % romsetArrayLength;
+    setFrontendMessage(romsetArray[currentRom]->name);
+    reset();
+}
+
+#ifdef __EMSCRIPTEN__
+void loadGame(const char* romName){
+    currentRom = 0;
+    while(strcmp(romName, romsetArray[currentRom]->name))
+        currentRom++;
+    setFrontendMessage(romsetArray[currentRom]->name);
+    reset();
+}
+#endif

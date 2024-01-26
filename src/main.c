@@ -12,6 +12,12 @@ void setup(){
 
     initAll();
     onExit = freeAll;
+
+    #ifdef __EMSCRIPTEN__
+    startupScreen = false;
+    volumeScaler = 100;
+    calculateVolume();
+    #endif
 }
 
 void loop(){
@@ -21,7 +27,11 @@ void loop(){
         }
 
     const Uint8* keyState = SDL_GetKeyboardState(NULL);
-    updateHotKeys(keyState);
+    
+    #ifndef __EMSCRIPTEN__
+        updateHotKeys(keyState);
+    #endif
+
     updateInput(keyState);
 
     drawVideo();

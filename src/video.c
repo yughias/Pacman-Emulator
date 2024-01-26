@@ -39,7 +39,6 @@ void freeVideoData(){
 
 int getColorFromROM(uint8_t idx){
     uint8_t colorPacman = colorROM[idx];
-    int colorRGB = 255 << 24;
     
     uint8_t red = 0;
     for(int i = 0; i < 3; i++){
@@ -47,24 +46,22 @@ int getColorFromROM(uint8_t idx){
         red += bit*colorTable[i];
         colorPacman >>= 1;
     } 
-    colorRGB |= red << 16;
 
     uint8_t green = 0;
     for(int i = 0; i < 3; i++){
         bool bit = colorPacman & 0x1;
         green += bit*colorTable[3+i];
         colorPacman >>= 1;
-    }  
-    colorRGB |= green << 8;
+    }
 
     uint8_t blue = 0;
     for(int i = 0; i < 2; i++){
         bool bit = colorPacman & 0x1;
         blue += bit*colorTable[6+i];
         colorPacman >>= 1;
-    }  
-    colorRGB |= blue;
-    return colorRGB;
+    }
+
+    return color(red, green, blue);
 }
 
 void getPaletteFromROM(uint8_t idx, int* paletteRGB){

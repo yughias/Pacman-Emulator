@@ -16,6 +16,14 @@ void updateInput(const Uint8* keyState){
         IN0 &= ~(uint8_t)(1 << 7);
 
     IN1 = 0xFF;
+    
+    // for emscripten dip switches I don't want support for dip switches and 2 player button
+    #ifdef __EMSCRIPTEN__
+        if(keyState[SDL_SCANCODE_RETURN])
+            IN1 &= ~(uint8_t)(1 << 5);
+        return;
+    #endif
+
     if(keyState[SDL_SCANCODE_1])
         IN1 &= ~(uint8_t)(1 << 5);
     if(keyState[SDL_SCANCODE_2])

@@ -2,6 +2,7 @@
 #define _ROMSET_H__
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef void (*initFunc)();
 

@@ -3,7 +3,7 @@
 
 #include <SDL_MAINLOOP.h>
 
-#define VOLUME_MULTIPLIER_LIMIT 95
+#define VOLUME_MULTIPLIER_LIMIT 48
 #define MESSAGE_FRAME_TIME     60
 
 extern const char coins_per_game_descriptor[4][32];
@@ -13,7 +13,7 @@ extern const char difficulty_descriptor[2][32];
 extern const char ghost_names_descriptor[2][32];
 
 extern char         message[33];
-extern uint64_t     remaining_frames;
+extern unsigned int remaining_frames;
 
 extern bool         startupScreen;
 extern bool         emulationStopped;
@@ -29,5 +29,6 @@ void showText(const char*, int, int);
 void updateFrontendMessage();
 void setFrontendMessage(const char*);
 void showStartupScreen();
+void loadNextGame();
 
 #endif

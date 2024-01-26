@@ -105,7 +105,7 @@ void loadState(){
     fread(cpu.R,                    1, 1,        fptr);
     fread(cpu.SP,                   2, 1,        fptr);
     fread(cpu.PC,                   2, 1,        fptr);
-    fread(&cpu.cycles,          8, 1,        fptr);
+    fread(&cpu.cycles,              8, 1,        fptr);
 
     fclose(fptr);
 }

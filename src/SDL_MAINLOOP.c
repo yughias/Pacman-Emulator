@@ -1,6 +1,10 @@
 #include "SDL_MAINLOOP.h"
 #undef main
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #define MAX_NAME  64
 
 unsigned int displayWidth;
@@ -9,7 +13,7 @@ int width = 800;
 int height = 600;
 int* pixels;
 
-unsigned int frameRate = 60;
+float frameRate = 60;
 unsigned int frameCount = 0;
 float deltaTime;
 
@@ -24,6 +28,7 @@ bool isKeyPressed = false;
 bool isKeyReleased = false;
 keyboard keyPressed;
 keyboard keyReleased;
+button exitButton = SDLK_ESCAPE;
 
 void (*onExit)() = NULL;
 void (*onKeyPressed)(keyboard) = NULL;
@@ -40,7 +45,7 @@ bool running = false;
 #ifdef MAINLOOP_GL
 Uint32 winFlags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE;
 #else 
-Uint32 winFlags = SDL_WINDOW_SHOWN;
+Uint32 winFlags = SDL_WINDOW_HIDDEN;
 #endif
 
 char windowName[MAX_NAME+1];
@@ -94,6 +99,132 @@ void renderOpenGL();
 int filterResize(void*, SDL_Event*);
 #endif
 
+#ifdef MAINLOOP_WINDOWS
+#include <SDL2/SDL_syswm.h>
+HWND hwnd = NULL;
+HMENU mainMenu = NULL;
+
+typedef struct {
+    menuId parent_menu;
+    void (*callback)();
+    size_t position;
+} button_t;
+size_t n_button = 0;
+button_t* buttons = NULL;
+
+typedef struct {
+    HMENU hMenu;
+    size_t n_button;
+    bool is_radio;
+} menu_t;
+size_t n_menu = 0;
+menu_t* menus = NULL;
+
+HWND getWindowHandler();
+void createMainMenu();
+void updateButtonVect(void (*callback)(), menuId);
+void updateMenuVect(HMENU, bool);
+
+#endif
+
+void mainloop(){
+    frameCount++;
+
+    #ifdef MAINLOOP_WINDOWS
+    MSG msg;
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+    {   
+        if(msg.message == WM_COMMAND){
+            unsigned int button_id = LOWORD(msg.wParam); 
+            if(button_id < n_button){
+                checkRadioButton(button_id);
+                if(buttons[button_id].callback)
+                    (*buttons[button_id].callback)();
+            }
+        }
+
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+    #endif
+
+    pmouseX = mouseX;
+    pmouseY = mouseY;
+    SDL_GetMouseState(&mouseX, &mouseY);
+    #ifdef MAINLOOP_GL
+    calculateRescaleVars();
+    mouseX -= localX;
+    mouseY -= localY;
+    mouseX *= width/render_width;
+    mouseY *= height/render_height;
+    #endif
+    if(mouseX < 0)
+        mouseX = 0;
+    if(mouseY < 0)
+        mouseY = 0;
+    if(mouseX >= width)
+        mouseX = width-1;
+    if(mouseY >= height)
+        mouseY = height-1;
+    SDL_Event event;
+    isKeyReleased = false;
+    isKeyPressed = false;
+    while(SDL_PollEvent(&event)){
+        switch(event.type){
+            case SDL_WINDOWEVENT:
+            if(event.window.event == SDL_WINDOWEVENT_CLOSE)
+                running = 0;
+            break;
+
+            case SDL_KEYDOWN:
+            keyPressed = event.key.keysym.sym;
+            isKeyPressed = true;
+            
+            if(event.key.keysym.sym == exitButton)
+                running = 0;
+
+            if(onKeyPressed)
+                (*onKeyPressed)(keyPressed);
+            break;
+
+            case SDL_KEYUP:
+            isKeyReleased = true;
+            keyReleased = event.key.keysym.sym;
+            if(onKeyReleased)
+                (*onKeyReleased)(keyReleased);
+            break;
+
+            case SDL_MOUSEBUTTONDOWN:
+            isMousePressed = true;
+            mouseButton = event.button.button;
+            break;
+
+            case SDL_MOUSEBUTTONUP:
+            isMousePressed = false;
+            break;
+        }
+    }
+
+    if(isMousePressed && (mouseX != pmouseX || mouseY != pmouseY))
+        isMouseDragged = true;
+    else
+        isMouseDragged = false;
+
+    #ifdef MAINLOOP_GL
+    SDL_LockTextureToSurface(drawBuffer, NULL, &surface);
+    pixels = (int*)surface->pixels;
+    #endif
+
+    loop();
+
+    #ifdef MAINLOOP_GL
+    SDL_UnlockTexture(drawBuffer);  
+    renderOpenGL();
+    #else 
+    SDL_UpdateWindowSurface(window);
+    #endif
+}
+
 int main(int argc, char* argv[]){
     SDL_Init(
         SDL_INIT_VIDEO |
@@ -114,12 +245,13 @@ int main(int argc, char* argv[]){
     
     setup();
 
-    window = SDL_CreateWindow(windowName, 100, 100, width, height, winFlags);
+    window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, winFlags);
     updateWindowIcon();
 
     #ifdef MAINLOOP_GL
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+
     drawBuffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 	setScaleMode(scale_mode);
     SDL_SetEventFilter(filterResize, NULL);
@@ -147,9 +279,18 @@ int main(int argc, char* argv[]){
         free(p->filename);
         p = p->next;
     } 
+    #endif
+
+    #ifdef MAINLOOP_WINDOWS
+    hwnd = getWindowHandler();
+
+    if(mainMenu && !(winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
+        SetMenu(hwnd, mainMenu);
+
+    SDL_SetWindowSize(window, width, height);
+    #endif
 
     SDL_ShowWindow(window);
-    #endif
 
     #ifndef MAINLOOP_GL
     surface = SDL_GetWindowSurface(window);
@@ -158,6 +299,9 @@ int main(int argc, char* argv[]){
     height = surface->h;
     #endif
 
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(mainloop, frameRate, 1);
+    #else 
     Uint64 a_clock = SDL_GetPerformanceCounter();
     Uint64 b_clock = SDL_GetPerformanceCounter();
     deltaTime = 0;
@@ -168,86 +312,7 @@ int main(int argc, char* argv[]){
         deltaTime = (float)(a_clock - b_clock)/SDL_GetPerformanceFrequency()*1000;
 
         if(deltaTime > 1000.0f / frameRate){
-            frameCount++;
-
-            #ifdef MAINLOOP_GL
-            calculateRescaleVars();
-            #endif
-
-            pmouseX = mouseX;
-            pmouseY = mouseY;
-            SDL_GetMouseState(&mouseX, &mouseY);
-            #ifdef MAINLOOP_GL
-            mouseX -= localX;
-            mouseY -= localY;
-            mouseX *= width/render_width;
-            mouseY *= height/render_height;
-            #endif
-            if(mouseX < 0)
-                mouseX = 0;
-            if(mouseY < 0)
-                mouseY = 0;
-            if(mouseX >= width)
-                mouseX = width-1;
-            if(mouseY >= height)
-                mouseY = height-1;
-            SDL_Event event;
-            isKeyReleased = false;
-            isKeyPressed = false;
-            while(SDL_PollEvent(&event)){
-                switch(event.type){
-                    case SDL_WINDOWEVENT:
-                    if(event.window.event == SDL_WINDOWEVENT_CLOSE)
-                        running = 0;
-                    break;
-
-                    case SDL_KEYDOWN:
-                    keyPressed = event.key.keysym.sym;
-                    isKeyPressed = true;
-                    
-                    if(event.key.keysym.sym == SDLK_ESCAPE)
-                        running = 0;
-
-                    if(onKeyPressed)
-                        (*onKeyPressed)(keyPressed);
-                    break;
-
-                    case SDL_KEYUP:
-                    isKeyReleased = true;
-                    keyReleased = event.key.keysym.sym;
-                    if(onKeyReleased)
-                        (*onKeyReleased)(keyReleased);
-                    break;
-
-                    case SDL_MOUSEBUTTONDOWN:
-                    isMousePressed = true;
-                    mouseButton = event.button.button;
-                    break;
-
-                    case SDL_MOUSEBUTTONUP:
-                    isMousePressed = false;
-                    break;
-                }
-            }
-
-            if(isMousePressed && (mouseX != pmouseX || mouseY != pmouseY))
-                isMouseDragged = true;
-            else
-                isMouseDragged = false;
-
-            #ifdef MAINLOOP_GL
-            SDL_LockTextureToSurface(drawBuffer, NULL, &surface);
-            pixels = (int*)surface->pixels;
-            #endif
-
-            loop();
-
-            #ifdef MAINLOOP_GL
-            SDL_UnlockTexture(drawBuffer);  
-            renderOpenGL();
-            #else 
-            SDL_UpdateWindowSurface(window);
-            #endif
+            mainloop();
 
             b_clock = a_clock;
         } else {
@@ -256,6 +321,7 @@ int main(int argc, char* argv[]){
                 SDL_Delay(ms - deltaTime - 1);
         }
     };
+    #endif
 
     if(onExit)
         (*onExit)();
@@ -273,6 +339,11 @@ int main(int argc, char* argv[]){
         free(shader_list);
         shader_list = tmp;
     }
+    #endif
+
+    #ifdef MAINLOOP_WINDOWS
+    free(buttons);
+    free(menus);
     #endif
 
     SDL_DestroyWindow(window);
@@ -312,6 +383,16 @@ Uint64 millis(){
 }
 
 void fullScreen(){
+    #ifdef MAINLOOP_WINDOWS
+    if(hwnd && window && mainMenu){
+        if(winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP)
+            SetMenu(hwnd, mainMenu);
+        else
+            SetMenu(hwnd, NULL);
+        SDL_SetWindowSize(window, width, height);
+    }
+    #endif
+
     if(!(winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
         winFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     else 
@@ -427,9 +508,9 @@ GLuint compileProgram(const char* fragFile) {
 }
 
 Shader loadShader(const char* filename){
-    shader_list_t* block = malloc(sizeof(shader_list_t));
+    shader_list_t* block = (shader_list_t*)malloc(sizeof(shader_list_t));
     block->next = NULL;
-    block->filename = malloc(129);
+    block->filename = (char*)malloc(129);
     strncpy(block->filename, filename, 128);
     if(!shader_list){
         shader_list = block;
@@ -470,6 +551,10 @@ void setScaleMode(ScaleMode mode){
         SDL_SetTextureScaleMode(drawBuffer, SDL_ScaleModeBest);
         break;
     }
+}
+
+void setVoidColor(int r, int g, int b){
+    glClearColor(r/255.0f, g/255.0f, b/255.0f, 1.0f);
 }
 
 void calculateRescaleVars(){
@@ -517,4 +602,79 @@ int filterResize(void* userdata, SDL_Event* event){
     return 1;
 }
 
+#endif
+
+#ifdef MAINLOOP_WINDOWS
+HWND getWindowHandler(){
+    SDL_SysWMinfo wmInfo;
+    SDL_VERSION(&wmInfo.version);
+    SDL_GetWindowWMInfo(window, &wmInfo);
+    return wmInfo.info.win.window;
+}
+
+void createMainMenu(){
+    if(!mainMenu)
+        mainMenu = CreateMenu();
+}
+
+void updateButtonVect(void (*callback)(), menuId parentMenu){
+    if(!buttons)
+        buttons = (button_t*)malloc(sizeof(button_t));
+    else
+        buttons = (button_t*)realloc(buttons, (n_button+1)*sizeof(button_t));
+    buttons[n_button].callback = callback;
+    buttons[n_button].parent_menu = parentMenu;
+    if(parentMenu != -1){
+      buttons[n_button].position = menus[parentMenu].n_button-1;  
+    }
+    n_button++;
+}
+
+void updateMenuVect(HMENU new_menu, bool isRadio){
+    if(!menus)
+        menus = (menu_t*)malloc(sizeof(menu_t));
+    else
+        menus = (menu_t*)realloc(menus, (n_menu+1)*sizeof(menu_t));
+    menus[n_menu].hMenu = new_menu;
+    menus[n_menu].n_button = 0;
+    menus[n_menu].is_radio = isRadio;
+    n_menu++;
+}
+
+menuId addMenuTo(menuId parentId, const wchar_t* string, bool isRadio){
+    HMENU parent = NULL;
+    if(parentId < n_menu)
+        parent = menus[parentId].hMenu;
+    if(!parent){
+        createMainMenu();
+        parent = mainMenu;
+    }
+    HMENU new_menu = CreateMenu();
+    AppendMenuW(parent, MF_POPUP, (UINT_PTR) new_menu, string);
+    updateMenuVect(new_menu, isRadio);
+    return n_menu-1;
+}
+
+buttonId addButtonTo(menuId parentId, const wchar_t* string, void (*callback)()){
+    HMENU parent = NULL;
+    if(parentId < n_menu){
+        parent = menus[parentId].hMenu;
+        menus[parentId].n_button++;
+    }
+    if(!parent){
+        createMainMenu();
+        parent = mainMenu;
+    }
+    AppendMenuW(parent, MF_STRING, n_button, string);
+    updateButtonVect(callback, parentId);
+    return n_button-1;
+}
+
+void checkRadioButton(buttonId button_id){
+    if(button_id < n_button){
+        menuId menu_id = buttons[button_id].parent_menu;
+        if(menu_id < n_menu && menus[menu_id].is_radio)
+            CheckMenuRadioItem(menus[menu_id].hMenu, 0, menus[menu_id].n_button-1, buttons[button_id].position, MF_BYPOSITION);
+    }
+}
 #endif

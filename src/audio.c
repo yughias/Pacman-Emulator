@@ -18,7 +18,7 @@ void audioCallback(void*, Uint8*, int);
 void initAudioData(){
     SDL_memset(&audioSpec, 0, sizeof(audioSpec));
     audioSpec.freq = AUDIO_FREQUENCY;
-    audioSpec.format = AUDIO_U16;
+    audioSpec.format = AUDIO_S16;
     audioSpec.channels = 1;
     audioSpec.samples = 1024;
     audioSpec.callback = audioCallback;
@@ -38,10 +38,8 @@ void freeAudioData(){
 }
 
 void calculateVolume(){
-    // scale audio from 0 to 95 to avoid overflow
-    volumeMultiplier = volumeScaler*VOLUME_MULTIPLIER_LIMIT/100.0f;
     // increase amplitude exponentially, since decibels are logarithmics
-    volumeMultiplier = pow(VOLUME_MULTIPLIER_LIMIT+1, volumeMultiplier/100.0f) - 1;
+    volumeMultiplier = pow(VOLUME_MULTIPLIER_LIMIT+1, volumeScaler/100.0f) - 1;
 }
 
 uint16_t generateAudioSample(){
@@ -94,6 +92,9 @@ uint16_t generateAudioSample(){
 
 void audioCallback(void* userdata, Uint8* stream, int len){
     len /= 2;
-    for(size_t i = 0; i < len; i++)
+    for(size_t i = 0; i < len; i++){
+        // device frequency is half the pacman apu frequency, so discard one sample
+        generateAudioSample();
         ((uint16_t*)stream)[i] = generateAudioSample()*volumeMultiplier;
+    }
 }

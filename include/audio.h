@@ -4,7 +4,7 @@
 #include <SDL_MAINLOOP.h>
 
 #define AUDIO_ROM_SIZE 512
-#define AUDIO_FREQUENCY 96000
+#define AUDIO_FREQUENCY 48000
 
 void initAudioData();
 void freeAudioData();

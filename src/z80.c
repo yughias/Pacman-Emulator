@@ -269,9 +269,11 @@ void processInterrupt(z80_t* z80){
             break;
             
             case 2:
-            uint16_t interruptAddress = *(uint16_t*)z80->readMemory((*z80->I << 8) | z80->INTERRUPT_VECT);
-            CALL(z80, interruptAddress);
-            z80->cycles += 19;
+            {
+                uint16_t interruptAddress = *(uint16_t*)z80->readMemory((*z80->I << 8) | z80->INTERRUPT_VECT);
+                CALL(z80, interruptAddress);
+                z80->cycles += 19;
+            }
             break;
         }
     }
@@ -360,8 +362,10 @@ void stepCPU(z80_t* z80){
         }
         switch(x){
             case 0:
-            rotateFunc function = rot[y];
-            (*function)(z80, r[z]);
+            {
+                rotateFunc function = rot[y];
+                (*function)(z80, r[z]);
+            }
             break;
 
             case 1:
