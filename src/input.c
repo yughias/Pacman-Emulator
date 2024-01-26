@@ -12,7 +12,7 @@ void updateInput(const Uint8* keyState){
         IN0 &= ~(uint8_t)(1 << 2);
     if(keyState[SDL_SCANCODE_DOWN])
         IN0 &= ~(uint8_t)(1 << 3);
-    if(keyState[SDL_SCANCODE_RSHIFT])
+    if(keyState[SDL_SCANCODE_RSHIFT] || keyState[SDL_SCANCODE_LSHIFT])
         IN0 &= ~(uint8_t)(1 << 7);
 
     IN1 = 0xFF;
