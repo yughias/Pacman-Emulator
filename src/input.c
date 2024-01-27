@@ -17,7 +17,8 @@ void updateInput(const Uint8* keyState){
 
     IN1 = 0xFF;
     
-    // for emscripten dip switches I don't want support for dip switches and 2 player button
+    // for emscripten I don't want support for dip switches and 2 player button
+    // 1 player button is mapped on return key
     #ifdef __EMSCRIPTEN__
         if(keyState[SDL_SCANCODE_RETURN])
             IN1 &= ~(uint8_t)(1 << 5);
