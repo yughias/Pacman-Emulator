@@ -3,6 +3,13 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+
+// emscripten doesn't include Mix_LoadWAV and Mix_PlayChannel macros 
+#ifdef MAINLOOP_AUDIO
+#define Mix_LoadWAV(file) Mix_LoadWAV_RW(SDL_RWFromFile(file, "rb"), 1);
+#define Mix_PlayChannel(channel, chunk, loops) Mix_PlayChannelTimed(channel, chunk, loops, -1);
+#endif
+
 #endif
 
 #define MAX_NAME  64
@@ -50,6 +57,11 @@ Uint32 winFlags = SDL_WINDOW_HIDDEN;
 
 char windowName[MAX_NAME+1];
 char iconPath[MAX_NAME+1];
+
+int main_argc;
+char** main_argv;
+
+bool render_every_frame = true;
 
 #ifdef MAINLOOP_GL
 SDL_Renderer* renderer = NULL;
@@ -101,6 +113,11 @@ int filterResize(void*, SDL_Event*);
 
 #ifdef MAINLOOP_WINDOWS
 #include <SDL2/SDL_syswm.h>
+#include <windows.h>
+#include <shlwapi.h>
+
+char absolutePath[1024];
+
 HWND hwnd = NULL;
 HMENU mainMenu = NULL;
 
@@ -126,6 +143,176 @@ void updateButtonVect(void (*callback)(), menuId);
 void updateMenuVect(HMENU, bool);
 
 #endif
+
+void mainloop();
+void render();
+
+// variables used for run loop at correct framerate
+#ifndef __EMSCRIPTEN__
+Uint64 a_clock;
+Uint64 b_clock;
+#else
+double a_clock;
+double b_clock;
+
+void emscripten_mainloop(){
+    float millis_per_frame = 1000.0 / frameRate;
+    float elapsed;
+    b_clock = emscripten_get_now();
+    elapsed = b_clock - a_clock;
+    deltaTime += elapsed;
+    a_clock = b_clock;
+    while(deltaTime >= millis_per_frame){
+        b_clock = emscripten_get_now();
+        mainloop();
+        elapsed = b_clock - a_clock;
+        a_clock = b_clock;
+        // if mainloop lasted for more than millis_per_frame
+        // immediately end to avoid infinite lag!
+        if(elapsed > millis_per_frame)
+            deltaTime = 0;
+        else 
+            deltaTime -= millis_per_frame;
+    }   
+}
+#endif
+
+int main(int argc, char* argv[]){
+    main_argc = argc;
+    main_argv = argv;
+
+    #ifdef MAINLOOP_WINDOWS
+    GetModuleFileName(NULL, absolutePath, 1024);
+    PathRemoveFileSpec(absolutePath);
+    #endif
+
+    SDL_Init(
+        SDL_INIT_VIDEO |
+        SDL_INIT_AUDIO
+        #ifdef MAINLOOP_GL
+        | SDL_VIDEO_OPENGL
+        #endif
+    );
+    SDL_DisplayMode displayMode;
+    SDL_GetCurrentDisplayMode(0, &displayMode);
+    displayWidth = displayMode.w;
+    displayHeight = displayMode.h;
+    strcpy(windowName, "window");
+    
+    #ifdef MAINLOOP_AUDIO
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
+    #endif
+    
+    setup();
+
+    window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, winFlags);
+    updateWindowIcon();
+
+    #ifdef MAINLOOP_GL
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+
+    drawBuffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	setScaleMode(scale_mode);
+    SDL_SetEventFilter(filterResize, NULL);
+
+    glCreateShader = (PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
+	glShaderSource = (PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
+	glCompileShader = (PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
+	glGetShaderiv = (PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
+	glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress("glGetShaderInfoLog");
+	glDeleteShader = (PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
+	glAttachShader = (PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
+	glCreateProgram = (PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
+	glLinkProgram = (PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
+	glValidateProgram = (PFNGLVALIDATEPROGRAMPROC)SDL_GL_GetProcAddress("glValidateProgram");
+	glGetProgramiv = (PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
+	glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress("glGetProgramInfoLog");
+	glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
+	glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress("glGetUniformLocation");
+	glUniform1f = (PFNGLUNIFORM1FPROC)SDL_GL_GetProcAddress("glUniform1f");
+    glUniform2f = (PFNGLUNIFORM2FPROC)SDL_GL_GetProcAddress("glUniform2f");
+
+    shader_list_t* p = shader_list;
+    while(p){
+        p->id = compileProgram(p->filename);
+        free(p->filename);
+        p = p->next;
+    } 
+    #endif
+
+    #ifdef MAINLOOP_WINDOWS
+    hwnd = getWindowHandler();
+
+    if(mainMenu && !(winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
+        SetMenu(hwnd, mainMenu);
+
+    SDL_SetWindowSize(window, width, height);
+    #endif
+
+    SDL_ShowWindow(window);
+
+    #ifndef MAINLOOP_GL
+    surface = SDL_GetWindowSurface(window);
+    pixels = (int*)surface->pixels;
+    width = surface->w;
+    height = surface->h;
+    #endif
+
+    deltaTime = 0;
+    #ifdef __EMSCRIPTEN__
+    a_clock = emscripten_get_now();
+    b_clock = emscripten_get_now();
+    emscripten_set_main_loop(emscripten_mainloop, 0, 1);
+    #else 
+    a_clock = SDL_GetPerformanceCounter();
+    b_clock = SDL_GetPerformanceCounter();
+
+    running = true;
+    while(running){
+        a_clock = SDL_GetPerformanceCounter();
+        deltaTime = (float)(a_clock - b_clock)/SDL_GetPerformanceFrequency()*1000;
+
+        if(deltaTime > 1000.0f / frameRate){
+            mainloop();
+
+            b_clock = a_clock;
+        } else {
+            float ms = 1000.0f/frameRate;
+            if(ms - deltaTime > 1.0f)
+                SDL_Delay(ms - deltaTime - 1);
+        }
+    };
+    #endif
+
+    if(onExit)
+        (*onExit)();
+
+    #ifdef MAINLOOP_AUDIO
+    Mix_CloseAudio();
+    #endif
+
+    #ifdef MAINLOOP_GL
+    SDL_DestroyTexture(drawBuffer);
+	SDL_DestroyRenderer(renderer);
+    
+    while(shader_list){
+        shader_list_t* tmp = shader_list->next;
+        free(shader_list);
+        shader_list = tmp;
+    }
+    #endif
+
+    #ifdef MAINLOOP_WINDOWS
+    free(buttons);
+    free(menus);
+    #endif
+
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
+    return 0;
+}
 
 void mainloop(){
     frameCount++;
@@ -217,139 +404,17 @@ void mainloop(){
 
     loop();
 
+    if(render_every_frame)
+        render();
+}
+
+void render(){
     #ifdef MAINLOOP_GL
     SDL_UnlockTexture(drawBuffer);  
     renderOpenGL();
     #else 
     SDL_UpdateWindowSurface(window);
     #endif
-}
-
-int main(int argc, char* argv[]){
-    SDL_Init(
-        SDL_INIT_VIDEO |
-        SDL_INIT_AUDIO
-        #ifdef MAINLOOP_GL
-        | SDL_VIDEO_OPENGL
-        #endif
-    );
-    SDL_DisplayMode displayMode;
-    SDL_GetCurrentDisplayMode(0, &displayMode);
-    displayWidth = displayMode.w;
-    displayHeight = displayMode.h;
-    strcpy(windowName, "window");
-    
-    #ifdef MAINLOOP_AUDIO
-    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
-    #endif
-    
-    setup();
-
-    window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, winFlags);
-    updateWindowIcon();
-
-    #ifdef MAINLOOP_GL
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
-
-    drawBuffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
-	setScaleMode(scale_mode);
-    SDL_SetEventFilter(filterResize, NULL);
-
-    glCreateShader = (PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
-	glShaderSource = (PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
-	glCompileShader = (PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
-	glGetShaderiv = (PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
-	glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress("glGetShaderInfoLog");
-	glDeleteShader = (PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
-	glAttachShader = (PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
-	glCreateProgram = (PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
-	glLinkProgram = (PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
-	glValidateProgram = (PFNGLVALIDATEPROGRAMPROC)SDL_GL_GetProcAddress("glValidateProgram");
-	glGetProgramiv = (PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
-	glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress("glGetProgramInfoLog");
-	glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
-	glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress("glGetUniformLocation");
-	glUniform1f = (PFNGLUNIFORM1FPROC)SDL_GL_GetProcAddress("glUniform1f");
-    glUniform2f = (PFNGLUNIFORM2FPROC)SDL_GL_GetProcAddress("glUniform2f");
-
-    shader_list_t* p = shader_list;
-    while(p){
-        p->id = compileProgram(p->filename);
-        free(p->filename);
-        p = p->next;
-    } 
-    #endif
-
-    #ifdef MAINLOOP_WINDOWS
-    hwnd = getWindowHandler();
-
-    if(mainMenu && !(winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
-        SetMenu(hwnd, mainMenu);
-
-    SDL_SetWindowSize(window, width, height);
-    #endif
-
-    SDL_ShowWindow(window);
-
-    #ifndef MAINLOOP_GL
-    surface = SDL_GetWindowSurface(window);
-    pixels = (int*)surface->pixels;
-    width = surface->w;
-    height = surface->h;
-    #endif
-
-    #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop(mainloop, frameRate, 1);
-    #else 
-    Uint64 a_clock = SDL_GetPerformanceCounter();
-    Uint64 b_clock = SDL_GetPerformanceCounter();
-    deltaTime = 0;
-
-    running = true;
-    while(running){
-        a_clock = SDL_GetPerformanceCounter();
-        deltaTime = (float)(a_clock - b_clock)/SDL_GetPerformanceFrequency()*1000;
-
-        if(deltaTime > 1000.0f / frameRate){
-            mainloop();
-
-            b_clock = a_clock;
-        } else {
-            float ms = 1000.0f/frameRate;
-            if(ms - deltaTime > 1.0f)
-                SDL_Delay(ms - deltaTime - 1);
-        }
-    };
-    #endif
-
-    if(onExit)
-        (*onExit)();
-
-    #ifdef MAINLOOP_AUDIO
-    Mix_CloseAudio();
-    #endif
-
-    #ifdef MAINLOOP_GL
-    SDL_DestroyTexture(drawBuffer);
-	SDL_DestroyRenderer(renderer);
-    
-    while(shader_list){
-        shader_list_t* tmp = shader_list->next;
-        free(shader_list);
-        shader_list = tmp;
-    }
-    #endif
-
-    #ifdef MAINLOOP_WINDOWS
-    free(buttons);
-    free(menus);
-    #endif
-
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
-    return 0;
 }
 
 void size(int w, int h){
@@ -426,6 +491,33 @@ int green(int col){
 
 int blue(int col){
     return col & 0xFF;
+}
+
+int getArgc(){
+    return main_argc;
+}
+
+const char* getArgv(int idx){
+    if(idx >= main_argc)
+        return NULL;
+    else
+        return main_argv[idx];
+}
+
+void noRender(){
+    render_every_frame = false;
+}
+
+void autoRender(){
+    render_every_frame = true;
+}
+
+void renderPixels(){
+    render();
+    #ifdef MAINLOOP_GL
+    SDL_LockTextureToSurface(drawBuffer, NULL, &surface);
+    pixels = (int*)surface->pixels;
+    #endif
 }
 
 #ifdef MAINLOOP_AUDIO
@@ -605,6 +697,11 @@ int filterResize(void* userdata, SDL_Event* event){
 #endif
 
 #ifdef MAINLOOP_WINDOWS
+void getAbsoluteDir(char* dst){
+    strcpy(dst, absolutePath);
+    strcat(dst, "\\");
+}
+
 HWND getWindowHandler(){
     SDL_SysWMinfo wmInfo;
     SDL_VERSION(&wmInfo.version);
