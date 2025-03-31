@@ -162,6 +162,9 @@ void emscripten_mainloop(){
     elapsed = b_clock - a_clock;
     deltaTime += elapsed;
     a_clock = b_clock;
+    // cap max deltaTime
+    if(deltaTime >= millis_per_frame * frameRate)
+        deltaTime = millis_per_frame * frameRate;
     while(deltaTime >= millis_per_frame){
         b_clock = emscripten_get_now();
         mainloop();
